@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>flythrough.ai - 3D House Mesh Generator from Video</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            color: white;
+            overflow-x: hidden;
+        }
+        
+        .video-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background-color: #000;
+        }
+        
+        #background-video {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            min-width: 100%;
+            min-height: 100%;
+            width: auto;
+            height: auto;
+            transform: translate(-50%, -50%);
+            object-fit: cover;
+        }
+        
+        .hero {
+            position: relative;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 0 20px;
+            background: rgba(0, 0, 0, 0.5);
+        }
+        
+        h1 {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+        
+        p {
+            font-size: 1.5rem;
+            max-width: 800px;
+            margin-bottom: 2rem;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(90deg, #3498db, #2980b9);
+            color: white;
+            font-size: 1.2rem;
+            padding: 15px 30px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .cta-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+        
+        .how-it-works {
+            background-color: #111;
+            padding: 100px 20px;
+            text-align: center;
+        }
+        
+        .how-it-works h2 {
+            font-size: 3rem;
+            margin-bottom: 50px;
+        }
+        
+        .placeholder-image {
+            width: 80%;
+            max-width: 1000px;
+            height: 500px;
+            margin: 0 auto;
+            background-color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #aaa;
+            font-size: 1.5rem;
+            border-radius: 8px;
+        }
+        
+        .scroll-indicator {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            animation: bounce 2s infinite;
+        }
+        
+        .scroll-indicator svg {
+            width: 30px;
+            height: 30px;
+            fill: white;
+        }
+        
+        /* File Upload Styles */
+        #file-upload {
+            display: none;
+        }
+        
+        /* Loading Animation */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+        
+        .loading-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .spinner {
+            width: 60px;
+            height: 60px;
+            margin-bottom: 20px;
+            border: 5px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border-top: 5px solid #3498db;
+            animation: spin 1s linear infinite;
+        }
+        
+        .processing-text {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .processing-subtext {
+            font-size: 1rem;
+            color: #aaa;
+            max-width: 400px;
+            text-align: center;
+        }
+        
+        .file-info {
+            margin-top: 20px;
+            padding: 15px 25px;
+            background-color: rgba(52, 152, 219, 0.1);
+            border-radius: 8px;
+            border: 1px solid rgba(52, 152, 219, 0.3);
+            font-size: 0.9rem;
+        }
+        
+        .file-info span {
+            font-weight: bold;
+            color: #3498db;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateY(0) translateX(-50%);
+            }
+            40% {
+                transform: translateY(-20px) translateX(-50%);
+            }
+            60% {
+                transform: translateY(-10px) translateX(-50%);
+            }
+        }
+        
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2.5rem;
+            }
+            
+            p {
+                font-size: 1.2rem;
+            }
+            
+            .how-it-works h2 {
+                font-size: 2rem;
+            }
+            
+            .placeholder-image {
+                height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="video-container">
+        <video id="background-video" autoplay loop muted playsinline>
+            <source src="assets/landing.mp4" type="video/mp4">
+            Your browser does not support the video tag.
+        </video>
+    </div>
+    
+    <div class="hero">
+        <h1>flythrough.ai</h1>
+        <p>Generate stunning 3D house meshes from raw video footage captured on your iPhone or any camera</p>
+        <button id="upload-button" class="cta-button">Upload Video</button>
+        <input type="file" id="file-upload" accept="video/mp4,video/*">
+        
+        <div class="scroll-indicator">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
+            </svg>
+        </div>
+    </div>
+    
+    <section class="how-it-works">
+        <h2>How It Works</h2>
+        <div class="placeholder-image">
+            Placeholder for "How It Works" Diagram
+        </div>
+    </section>
+    
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="spinner"></div>
+        <div class="processing-text">Processing Your Video</div>
+        <div class="processing-subtext">This may take a few minutes. We're analyzing your video footage and generating a detailed 3D mesh of the space.</div>
+        <div class="file-info" id="file-info"></div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const video = document.getElementById('background-video');
+            const uploadButton = document.getElementById('upload-button');
+            const fileUpload = document.getElementById('file-upload');
+            const loadingOverlay = document.getElementById('loading-overlay');
+            const fileInfo = document.getElementById('file-info');
+            
+            // Video background optimization
+            video.preload = 'auto';
+            
+            // Handle video loading
+            video.addEventListener('loadeddata', function() {
+                video.play().catch(e => {
+                    console.log('Autoplay prevented:', e);
+                    // Add play button if autoplay is prevented
+                    const playButton = document.createElement('button');
+                    playButton.textContent = 'Play Video';
+                    playButton.style.position = 'absolute';
+                    playButton.style.zIndex = '10';
+                    playButton.style.top = '20px';
+                    playButton.style.right = '20px';
+                    document.body.appendChild(playButton);
+                    
+                    playButton.addEventListener('click', () => {
+                        video.play();
+                        playButton.remove();
+                    });
+                });
+            });
+            
+            // Reload video if it stalls
+            video.addEventListener('stalled', function() {
+                console.log('Video stalled, attempting to reload');
+                video.load();
+                video.play().catch(e => console.log('Reload play prevented:', e));
+            });
+            
+            // Video frame callback for smooth playback
+            if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
+                function updateVideo(now, metadata) {
+                    video.requestVideoFrameCallback(updateVideo);
+                }
+                video.requestVideoFrameCallback(updateVideo);
+            }
+            
+            // Handle file upload button click
+            uploadButton.addEventListener('click', function() {
+                fileUpload.click();
+            });
+            
+            // Handle file selection
+            fileUpload.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                
+                if (file) {
+                    // Check if it's a video file
+                    if (file.type.startsWith('video/')) {
+                        // Display file info
+                        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+                        fileInfo.innerHTML = `File: <span>${file.name}</span> (${fileSizeMB} MB)`;
+                        
+                        // Show loading overlay
+                        loadingOverlay.classList.add('visible');
+                        
+                        // Here we would normally upload the file to the server
+                        // For now, we'll just show the loading animation indefinitely
+                        
+                        // The actual API call would look something like this:
+                        /*
+                        const formData = new FormData();
+                        formData.append('video', file);
+                        
+                        fetch('/api/videos/upload', {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            // Hide loading overlay
+                            loadingOverlay.classList.remove('visible');
+                            // Redirect to results page
+                            window.location.href = 'query.html?id=' + data.id;
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            // Handle error
+                            loadingOverlay.classList.remove('visible');
+                            alert('There was an error uploading your video. Please try again.');
+                        });
+                        */
+                    } else {
+                        alert('Please select a video file.');
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>
