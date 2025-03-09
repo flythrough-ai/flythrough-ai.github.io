@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>flythrough.ai - 3D Visualization</title>
+    <!-- Load Stripe.js -->
+    <script src="https://js.stripe.com/v3/"></script>
+    <!-- Load Stripe Pricing Table -->
+    <script async src="https://js.stripe.com/v3/pricing-table.js"></script>
     <style>
         * {
             margin: 0;
@@ -136,6 +140,34 @@
             vertical-align: middle;
             fill: currentColor;
         }
+        
+        .spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .pricing-container {
+            margin-top: 80px;
+            padding: 40px 0;
+            background-color: #222;
+            border-radius: 10px;
+        }
+        
+        .pricing-title {
+            text-align: center;
+            margin-bottom: 30px;
+        }
     </style>
 </head>
 <body>
@@ -166,7 +198,8 @@
                 <h1>Your 3D Model is Ready</h1>
                 <p>This preview shows a simplified version of your 3D house mesh. Purchase the full model to get high-resolution textures, accurate measurements, and exportable files compatible with major 3D software.</p>
                 
-                <button class="buy-button">
+                <button id="checkout-button" class="buy-button">
+                    <div class="spinner" id="spinner"></div>
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
                         <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
                     </svg>
