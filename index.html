@@ -329,24 +329,34 @@
                         // Show loading overlay
                         loadingOverlay.classList.add('visible');
                         
-                        // Here we would normally upload the file to the server
-                        // For now, we'll just show the loading animation indefinitely
-                        
-                        // The actual API call would look something like this:
-                        /*
-                        const formData = new FormData();
-                        formData.append('video', file);
-                        
-                        fetch('/api/videos/upload', {
+                        // Create a session and upload the file
+                        fetch('/api/session/create', {
                             method: 'POST',
-                            body: formData
+                            body: new FormData() // Empty form data for default session name
+                        })
+                        .then(response => response.json())
+                        .then(sessionData => {
+                            // Got session ID, now upload the file
+                            const sessionId = sessionData.session_id;
+                            const formData = new FormData();
+                            formData.append('file', file);
+                            
+                            return fetch(`/api/session/${sessionId}/upload`, {
+                                method: 'POST',
+                                body: formData
+                            });
                         })
                         .then(response => response.json())
                         .then(data => {
                             // Hide loading overlay
                             loadingOverlay.classList.remove('visible');
-                            // Redirect to results page
-                            window.location.href = 'query.html?id=' + data.id;
+                            
+                            if (data.error) {
+                                throw new Error(data.error);
+                            }
+                            
+                            // Redirect to editor page with session and asset IDs
+                            window.location.href = `editor.html?session=${data.session_id}&asset=${data.asset_id}`;
                         })
                         .catch(error => {
                             console.error('Error:', error);
@@ -354,7 +364,6 @@
                             loadingOverlay.classList.remove('visible');
                             alert('There was an error uploading your video. Please try again.');
                         });
-                        */
                     } else {
                         alert('Please select a video file.');
                     }

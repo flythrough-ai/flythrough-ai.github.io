@@ -632,8 +632,56 @@
         
         // Initialize backend on page load
         window.addEventListener('DOMContentLoaded', async () => {
-            // Create a new session
-            await createSession();
+            // Check if we have session and asset IDs in the URL parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const sessionId = urlParams.get('session');
+            const assetId = urlParams.get('asset');
+            
+            if (sessionId && assetId) {
+                // We have session and asset IDs, use them
+                currentSessionId = sessionId;
+                document.getElementById('status').textContent = 'Loading existing session...';
+                
+                // Show loading overlay while we load the asset
+                document.getElementById('loading-overlay').style.display = 'flex';
+                
+                try {
+                    // Get the frames for the asset
+                    const frames = await getAssetFrames(assetId);
+                    
+                    if (frames.length > 0) {
+                        // Load frames into the timeline
+                        loadFramesIntoTimeline(frames);
+                        
+                        // Generate 3D visualization from the loaded frames
+                        generatePointGroups(frames);
+                        
+                        // Show all point groups
+                        showAllPointGroups();
+                        
+                        // Highlight first frame's points
+                        togglePointGroup(1);
+                        
+                        document.getElementById('status').textContent = 
+                            `Loaded ${frames.length} frames from existing session`;
+                    } else {
+                        throw new Error('No frames found for this asset');
+                    }
+                } catch (error) {
+                    console.error('Error loading asset:', error);
+                    document.getElementById('status').textContent = 
+                        `Error loading asset: ${error.message}`;
+                        
+                    // If there was an error, create a new session as fallback
+                    await createSession();
+                } finally {
+                    // Hide loading overlay
+                    document.getElementById('loading-overlay').style.display = 'none';
+                }
+            } else {
+                // No session/asset IDs in URL, create a new session
+                await createSession();
+            }
         });
         
         // Clean up session when page is unloaded
