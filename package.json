@@ -1,0 +1,10 @@
+{
+  "name": "flythrough-ai",
+  "version": "1.0.0",
+  "description": "3D House Mesh Generator from Video",
+  "main": "index.html",
+  "scripts": {
+    "start": "python -m http.server", 
+    "build": "echo 'No build step required for static site'"
+  }
+}

@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Purchase Successful - flythrough.ai</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #111;
+            color: white;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 80px 20px;
+            text-align: center;
+        }
+        
+        .logo {
+            font-size: 2rem;
+            font-weight: bold;
+            text-decoration: none;
+            color: white;
+            display: inline-block;
+            margin-bottom: 50px;
+        }
+        
+        .success-icon {
+            width: 100px;
+            height: 100px;
+            fill: #2ecc71;
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+        }
+        
+        p {
+            font-size: 1.2rem;
+            color: #ccc;
+            margin-bottom: 40px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .button {
+            display: inline-block;
+            background: linear-gradient(90deg, #3498db, #2980b9);
+            color: white;
+            font-size: 1.2rem;
+            padding: 15px 30px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+        
+        .download-info {
+            margin-top: 50px;
+            padding: 30px;
+            background-color: #222;
+            border-radius: 10px;
+            text-align: left;
+        }
+        
+        .download-info h2 {
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+        
+        .download-info ul {
+            list-style-type: none;
+            margin-bottom: 30px;
+        }
+        
+        .download-info li {
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .download-info li svg {
+            width: 20px;
+            height: 20px;
+            fill: #3498db;
+            margin-right: 10px;
+            flex-shrink: 0;
+        }
+    </style>
+    <script src="https://js.stripe.com/v3/"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <a href="index.html" class="logo">flythrough.ai</a>
+        
+        <svg class="success-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M0 0h24v24H0z" fill="none"/>
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+        </svg>
+        
+        <h1>Purchase Successful!</h1>
+        <p>Thank you for your purchase. Your high-resolution 3D model is now ready for download. We've also sent a download link to your email.</p>
+        
+        <div id="model-viewer" style="width: 100%; height: 400px; margin-bottom: 40px; border-radius: 10px; overflow: hidden;"></div>
+        
+        <a href="#" class="button" id="download-btn">Download 3D Model</a>
+        
+        <div class="download-info">
+            <h2>What's included in your purchase:</h2>
+            <ul>
+                <li>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                    </svg>
+                    High-resolution 3D model with textures
+                </li>
+                <li>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                    </svg>
+                    Multiple file formats (.obj, .fbx, .glb)
+                </li>
+                <li>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                    </svg>
+                    Accurate measurements and scale
+                </li>
+                <li>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                    </svg>
+                    30 days of cloud storage access
+                </li>
+            </ul>
+            
+            <p>For any questions or technical support, please contact <a href="mailto:support@flythrough.ai" style="color: #3498db;">support@flythrough.ai</a></p>
+        </div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+        
+        // Get session_id from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const sessionId = urlParams.get('session_id');
+        
+        // Initialize 3D viewer
+        let scene, camera, renderer, controls, model;
+        
+        function initThreeJS() {
+            // Create scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x222222);
+            
+            // Create camera
+            camera = new THREE.PerspectiveCamera(75, document.getElementById('model-viewer').clientWidth / document.getElementById('model-viewer').clientHeight, 0.1, 1000);
+            camera.position.z = 5;
+            
+            // Create renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(document.getElementById('model-viewer').clientWidth, document.getElementById('model-viewer').clientHeight);
+            document.getElementById('model-viewer').appendChild(renderer.domElement);
+            
+            // Add controls
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.25;
+            
+            // Add lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(1, 1, 1);
+            scene.add(directionalLight);
+            
+            const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.5);
+            directionalLight2.position.set(-1, -1, -1);
+            scene.add(directionalLight2);
+            
+            // Load model
+            const loader = new OBJLoader();
+            loader.load('assets/bunny.obj', function(object) {
+                model = object;
+                
+                // Center the model
+                const box = new THREE.Box3().setFromObject(model);
+                const center = box.getCenter(new THREE.Vector3());
+                const size = box.getSize(new THREE.Vector3());
+                
+                // Reset model position
+                model.position.sub(center);
+                
+                // Scale model to fit viewer
+                const maxDim = Math.max(size.x, size.y, size.z);
+                const scale = 3 / maxDim;
+                model.scale.set(scale, scale, scale);
+                
+                // Add model to scene
+                scene.add(model);
+                
+                // Rotate model for better initial view
+                model.rotation.x = -Math.PI / 4;
+            }, function(xhr) {
+                // Progress callback
+                console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+            }, function(error) {
+                // Error callback
+                console.error('Error loading model:', error);
+            });
+            
+            // Animation loop
+            function animate() {
+                requestAnimationFrame(animate);
+                
+                if (model) {
+                    model.rotation.y += 0.005;
+                }
+                
+                controls.update();
+                renderer.render(scene, camera);
+            }
+            
+            animate();
+            
+            // Handle window resize
+            window.addEventListener('resize', function() {
+                camera.aspect = document.getElementById('model-viewer').clientWidth / document.getElementById('model-viewer').clientHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(document.getElementById('model-viewer').clientWidth, document.getElementById('model-viewer').clientHeight);
+            });
+        }
+        
+        // Initialize 3D viewer when page loads
+        window.addEventListener('load', initThreeJS);
+    </script>
+    
+    <script>
+        // You would typically verify the session on your server
+        // and generate a download link based on the purchase
+        
+        document.getElementById('download-btn').addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // In a real implementation, this would fetch a signed URL from your server
+            // For demo purposes, we'll just show an alert
+            alert('In a real implementation, this would download your 3D model files');
+            
+            // Example of how you might implement this:
+            /*
+            fetch('/.netlify/functions/get-download-url', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    sessionId: sessionId
+                }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                window.location.href = data.downloadUrl;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('There was an error generating your download link. Please contact support.');
+            });
+            */
+        });
+    </script>
+</body>
+</html>

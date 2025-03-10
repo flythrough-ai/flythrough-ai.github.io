@@ -207,6 +207,65 @@
                 </button>
             </div>
         </div>
+        
+        <!-- Pricing Section with Stripe Pricing Table -->
+        <div class="pricing-container">
+            <div class="pricing-title">
+                <h2>Choose Your Plan</h2>
+            </div>
+            <stripe-pricing-table pricing-table-id="prctbl_1R0ZG1F535dtD4hcf4Ak9E8P"
+            publishable-key="pk_live_51R0YB8F535dtD4hcluK1dfVk6sXPaYJBRoRgHKtZfncknkZl85u1qsKlmDNNFrZITlRqJ0gN4io0st2bzb9uzD1z00pZXi4E6i">
+            </stripe-pricing-table>
+        </div>
     </div>
+
+    <script>
+        // Initialize Stripe with your publishable key
+        const stripe = Stripe('pk_live_51R0YB8F535dtD4hcluK1dfVk6sXPaYJBRoRgHKtZfncknkZl85u1qsKlmDNNFrZITlRqJ0gN4io0st2bzb9uzD1z00pZXi4E6i'); // Your Stripe publishable key
+
+        const checkoutButton = document.getElementById('checkout-button');
+        const spinner = document.getElementById('spinner');
+
+        checkoutButton.addEventListener('click', function() {
+            // Show loading state
+            checkoutButton.disabled = true;
+            spinner.style.display = 'inline-block';
+            
+            // Create a Stripe Checkout Session using your backend API
+            fetch('https://api.flythrough.ai/create-checkout-session', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    priceId: 'price_1R0ZF8F535dtD4hcJPwVmjwj', // Your Stripe Price ID
+                    productName: 'Short Flythrough',
+                    customerEmail: '', // You can pre-fill this if you have the user's email
+                }),
+            })
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(session) {
+                return stripe.redirectToCheckout({ sessionId: session.id });
+            })
+            .then(function(result) {
+                // If redirectToCheckout fails due to a browser or network
+                // error, display the localized error message to your customer
+                if (result.error) {
+                    alert(result.error.message);
+                }
+            })
+            .catch(function(error) {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again later.');
+            })
+            .finally(function() {
+                // Reset button state
+                checkoutButton.disabled = false;
+                spinner.style.display = 'none';
+            });
+        });
+    </script>
 </body>
 </html>

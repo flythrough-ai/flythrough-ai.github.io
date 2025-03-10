@@ -1,0 +1,1588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>flythrough.ai - Scene Editor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #111;
+            color: white;
+            line-height: 1.6;
+            overflow: hidden;
+            height: 100vh;
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background-color: #222;
+            border-bottom: 1px solid #333;
+        }
+        
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-decoration: none;
+            color: white;
+        }
+        
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .select-control {
+            background-color: #333;
+            color: white;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 8px 15px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            outline: none;
+        }
+        
+        .select-control:hover {
+            border-color: #3498db;
+        }
+        
+        .header-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .action-button {
+            background: linear-gradient(90deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 15px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .action-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+        }
+        
+        .timeline {
+            height: 120px;
+            background-color: #1a1a1a;
+            border-bottom: 1px solid #333;
+            overflow-x: auto;
+            overflow-y: visible;
+            white-space: nowrap;
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            z-index: 10; /* Ensure timeline is above other elements */
+            position: relative;
+        }
+        
+        .frame-container {
+            display: inline-flex;
+            gap: 5px;
+            height: 100%;
+            align-items: center;
+            padding: 5px 0;
+        }
+        
+        .frame {
+            height: 80px;
+            width: 142px; /* 16:9 aspect ratio */
+            background-color: #333;
+            border: 2px solid transparent;
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+        
+        .frame.selected {
+            border-color: #3498db;
+        }
+        
+        .frame.highlighted {
+            border-color: #ff9900;
+            box-shadow: 0 0 8px rgba(255, 153, 0, 0.7);
+        }
+        
+        .frame.active {
+            border-color: rgba(52, 152, 219, 0.5);
+        }
+        
+        .frame img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .frame .frame-number {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            font-size: 0.7rem;
+            text-align: center;
+            padding: 2px 0;
+        }
+        
+        .main-area {
+            flex: 1;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #191919;
+        }
+        
+        .preview-container {
+            width: 75%;
+            height: 85%;
+            position: relative;
+            overflow: hidden;
+            background-color: #222;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+        
+        #preview-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        
+        .scene-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background-color: rgba(34, 34, 34, 0.7);
+            padding: 10px;
+            border-radius: 8px;
+            backdrop-filter: blur(4px);
+            z-index: 10;
+        }
+        
+        .scene-control-button {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background-color: rgba(52, 152, 219, 0.3);
+            color: white;
+            border: 1px solid rgba(52, 152, 219, 0.5);
+            border-radius: 4px;
+            padding: 8px 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+        
+        .scene-control-button:hover {
+            background-color: rgba(52, 152, 219, 0.6);
+            transform: translateX(-2px);
+        }
+        
+        .scene-control-button.active {
+            background-color: rgba(52, 152, 219, 0.8);
+            box-shadow: 0 0 10px rgba(52, 152, 219, 0.5);
+        }
+        
+        .status-bar {
+            height: 25px;
+            background-color: #222;
+            border-top: 1px solid #333;
+            padding: 0 15px;
+            display: flex;
+            align-items: center;
+            font-size: 0.8rem;
+            color: #999;
+        }
+        
+        /* Loading screen */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border-top: 5px solid #3498db;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <a href="index.html" class="logo">flythrough.ai</a>
+            <div class="header-controls">
+                <select id="data-source" class="select-control">
+                    <option value="local">Local Files</option>
+                    <option value="cloud">Cloud Storage</option>
+                    <option value="sample">Sample Data</option>
+                    <option value="api">External API</option>
+                </select>
+                <div class="header-buttons">
+                    <button class="action-button" id="load-media">Load Media</button>
+                    <button class="action-button" id="export-scene">Export Scene</button>
+                </div>
+            </div>
+        </header>
+        
+        <div class="timeline">
+            <div class="frame-container" id="frame-container">
+                <!-- Mock frames will be added here by JavaScript -->
+            </div>
+        </div>
+        
+        <div class="main-area">
+            <div class="preview-container">
+                <canvas id="preview-canvas"></canvas>
+                <!-- Loading overlay -->
+                <div class="loading-overlay" id="loading-overlay" style="display: none;">
+                    <div class="spinner"></div>
+                    <div>Processing media...</div>
+                </div>
+                <!-- Floating controls for the 3D view -->
+                <div class="scene-controls">
+                    <button class="scene-control-button" id="orbit-control">
+                        <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M12,5A3.5,3.5 0 0,0 8.5,8.5A3.5,3.5 0 0,0 12,12A3.5,3.5 0 0,0 15.5,8.5A3.5,3.5 0 0,0 12,5M12,7A1.5,1.5 0 0,1 13.5,8.5A1.5,1.5 0 0,1 12,10A1.5,1.5 0 0,1 10.5,8.5A1.5,1.5 0 0,1 12,7M5.5,8A2.5,2.5 0 0,0 3,10.5C3,11.44 3.53,12.25 4.29,12.68C4.65,12.88 5.06,13 5.5,13C5.94,13 6.35,12.88 6.71,12.68C7.08,12.47 7.39,12.17 7.62,11.81C6.89,10.86 6.5,9.7 6.5,8.5C6.5,8.41 6.5,8.31 6.5,8.22C6.2,8.08 5.86,8 5.5,8M18.5,8C18.14,8 17.8,8.08 17.5,8.22C17.5,8.31 17.5,8.41 17.5,8.5C17.5,9.7 17.11,10.86 16.38,11.81C16.5,12 16.63,12.15 16.78,12.3C16.94,12.45 17.1,12.58 17.29,12.68C17.65,12.88 18.06,13 18.5,13C18.94,13 19.35,12.88 19.71,12.68C20.47,12.25 21,11.44 21,10.5A2.5,2.5 0 0,0 18.5,8M12,14C9.66,14 5,15.17 5,17.5V19H19V17.5C19,15.17 14.34,14 12,14M4.71,14.55C2.78,14.78 0,15.76 0,17.5V19H3V17.07C3,16.06 3.69,15.22 4.71,14.55M19.29,14.55C20.31,15.22 21,16.06 21,17.07V19H24V17.5C24,15.76 21.22,14.78 19.29,14.55M12,16C13.53,16 15.24,16.5 16.23,17H7.77C8.76,16.5 10.47,16 12,16Z"/></svg>
+                        Orbit
+                    </button>
+                    <button class="scene-control-button" id="pan-control">
+                        <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M13,11H18L16.5,9.5L17.92,8.08L21.84,12L17.92,15.92L16.5,14.5L18,13H13V18L14.5,16.5L15.92,17.92L12,21.84L8.08,17.92L9.5,16.5L11,18V13H6L7.5,14.5L6.08,15.92L2.16,12L6.08,8.08L7.5,9.5L6,11H11V6L9.5,7.5L8.08,6.08L12,2.16L15.92,6.08L14.5,7.5L13,6V11Z"/></svg>
+                        Pan
+                    </button>
+                    <button class="scene-control-button" id="zoom-control">
+                        <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M9,2A7,7 0 0,1 16,9C16,10.57 15.5,12 14.61,13.19L15.41,14H16L22,20L20,22L14,16V15.41L13.19,14.61C12,15.5 10.57,16 9,16A7,7 0 0,1 2,9A7,7 0 0,1 9,2M8,5V8H5V10H8V13H10V10H13V8H10V5H8Z"/></svg>
+                        Zoom
+                    </button>
+                    <button class="scene-control-button" id="rotate-object">
+                        <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M12,5C16.97,5 21,7.69 21,11C21,12.68 19.96,14.2 18.29,15.29C19.36,14.42 20,13.32 20,12.13C20,9.29 16.42,7 12,7V10L8,6L12,2V5M12,19C7.03,19 3,16.31 3,13C3,11.32 4.04,9.8 5.71,8.71C4.64,9.58 4,10.68 4,11.88C4,14.71 7.58,17 12,17V14L16,18L12,22V19Z"/></svg>
+                        Rotate
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="status-bar">
+            <div id="status">Ready</div>
+        </div>
+    </div>
+    
+    <script>
+        // Initialize frames array and container
+        let frameCount = 0;
+        const frameContainer = document.getElementById('frame-container');
+        
+        // Backend API configuration
+        const API_BASE_URL = 'http://localhost:5000'; // Base URL without the /api suffix
+        const API_PREFIX = '/api'; // API route prefix
+        let currentSessionId = null;
+        let loadedFrames = [];
+        
+        // Create a new session when the page loads
+        async function createSession() {
+            try {
+                const response = await fetch(`${API_BASE_URL}${API_PREFIX}/session/create`, {
+                    method: 'POST',
+                    body: new FormData() // Empty form data for default session name
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Server responded with ${response.status}`);
+                }
+                
+                const data = await response.json();
+                currentSessionId = data.session_id;
+                console.log(`Created new session: ${currentSessionId}`);
+                return currentSessionId;
+            } catch (error) {
+                console.error('Error creating session:', error);
+                document.getElementById('status').textContent = `Error: ${error.message}`;
+                return null;
+            }
+        }
+        
+        // Upload a file to the current session
+        async function uploadFile(file) {
+            if (!currentSessionId) {
+                currentSessionId = await createSession();
+                if (!currentSessionId) return null;
+            }
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                document.getElementById('status').textContent = 'Uploading file to server...';
+                
+                console.log(`Uploading to ${API_BASE_URL}${API_PREFIX}/session/${currentSessionId}/upload`);
+                
+                const response = await fetch(`${API_BASE_URL}${API_PREFIX}/session/${currentSessionId}/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Server responded with ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('Upload successful, raw response:', data);
+                
+                // Check if we received an error response
+                if (data.error) {
+                    console.error('Server returned an error:', data.error);
+                    
+                    // Special handling for camera_pose column error
+                    if (data.error.includes('table frames has no column named camera_pose')) {
+                        console.warn('Database schema error detected. Will use mock data.');
+                        // Return the error so the caller can handle it specially
+                        return data;
+                    } else {
+                        throw new Error(data.error);
+                    }
+                }
+                
+                // Validate the response contains what we need
+                if (!data.asset_id) {
+                    console.warn('Warning: Upload response is missing asset_id field:', data);
+                    // If the response contains asset data under a different field name, 
+                    // try to adapt to the actual response structure
+                    if (data.asset && data.asset.id) {
+                        console.log('Found asset.id instead of asset_id, adapting...');
+                        data.asset_id = data.asset.id;
+                    } else {
+                        // Create a mock asset ID as a workaround
+                        console.log('Creating mock asset ID as fallback...');
+                        data.asset_id = `mock-asset-${new Date().getTime()}`;
+                        
+                        // Alert the user about the server issue
+                        document.getElementById('status').textContent = 
+                            'Server database issue detected. Using fallback visualization.';
+                    }
+                }
+                
+                document.getElementById('status').textContent = 
+                    `Processed ${data.frames_count || 'unknown number of'} frames from ${data.filename || file.name}`;
+                
+                return data;
+            } catch (error) {
+                console.error('Error uploading file:', error);
+                document.getElementById('status').textContent = `Error: ${error.message}`;
+                return null;
+            }
+        }
+        
+        // Get frames for an asset
+        async function getAssetFrames(assetId) {
+            try {
+                // Validate asset ID before making request
+                if (!assetId) {
+                    console.error('Error: Cannot fetch frames - assetId is undefined or null');
+                    document.getElementById('status').textContent = 'Error: Missing asset ID';
+                    return [];
+                }
+                
+                console.log(`Fetching frames from ${API_BASE_URL}${API_PREFIX}/asset/${assetId}/frames`);
+                
+                const response = await fetch(`${API_BASE_URL}${API_PREFIX}/asset/${assetId}/frames`);
+                
+                if (!response.ok) {
+                    throw new Error(`Server responded with ${response.status} (${response.statusText})`);
+                }
+                
+                const data = await response.json();
+                console.log('Frames retrieved, raw response:', data);
+                
+                // Handle different response formats
+                if (data && Array.isArray(data.frames)) {
+                    console.log(`Found ${data.frames.length} frames in response`);
+                    return data.frames.map(frame => {
+                        // Clean and validate each frame object
+                        return {
+                            id: frame.id || `frame-${Math.random().toString(36).substr(2, 9)}`,
+                            frame_number: frame.frame_number || 0,
+                            url: frame.url || '',
+                            thumbnail_url: frame.thumbnail_url || frame.url || '',
+                            timestamp: frame.timestamp || 0,
+                            point_cloud_data: frame.point_cloud_data || '[]',
+                            camera_pose: frame.camera_pose || null
+                        };
+                    });
+                } else if (data && Array.isArray(data)) {
+                    // Handle case where response is a direct array instead of {frames: [...]}
+                    console.log(`Found ${data.length} frames in direct array response`);
+                    return data.map(frame => {
+                        return {
+                            id: frame.id || `frame-${Math.random().toString(36).substr(2, 9)}`,
+                            frame_number: frame.frame_number || 0,
+                            url: frame.url || '',
+                            thumbnail_url: frame.thumbnail_url || frame.url || '',
+                            timestamp: frame.timestamp || 0,
+                            point_cloud_data: frame.point_cloud_data || '[]',
+                            camera_pose: frame.camera_pose || null
+                        };
+                    });
+                } else {
+                    console.error('Unexpected response format:', data);
+                    document.getElementById('status').textContent = 
+                        'Error: Unexpected response format from server';
+                    return [];
+                }
+            } catch (error) {
+                console.error('Error getting frames:', error);
+                document.getElementById('status').textContent = `Error: ${error.message}`;
+                return [];
+            }
+        }
+        
+        // Load frames into the timeline
+        function loadFramesIntoTimeline(frames) {
+            // Clear existing frames
+            const frameContainer = document.getElementById('frame-container');
+            frameContainer.innerHTML = '';
+            loadedFrames = frames;
+            frameCount = frames.length;
+            
+            // Add new frames
+            frames.forEach((frame, index) => {
+                const frameElement = document.createElement('div');
+                frameElement.className = 'frame';
+                frameElement.dataset.id = index + 1;
+                frameElement.dataset.frameId = frame.id;
+                
+                // Create thumbnail image
+                const thumbnailImg = document.createElement('img');
+                
+                // Debug: Log the thumbnail URL before setting it
+                console.log('Frame URL:', frame.url);
+                console.log('Frame Thumbnail URL:', frame.thumbnail_url);
+                
+                let useMockColor = false;
+                
+                // Check if this is a mock frame from our generateMockFrames function
+                // Both thumbnail_url and url will be empty strings in our mock frames
+                if ((frame.thumbnail_url === '' && frame.url === '') ||
+                   (!frame.thumbnail_url && !frame.url)) {
+                    console.log('Using mock color for frame', index + 1);
+                    useMockColor = true;
+                }
+                // Use thumbnail URL if available, otherwise use full image URL
+                // NOTE: The URLs from the server already include /api/ prefix, so we need to fix the path
+                else if (frame.thumbnail_url) {
+                    thumbnailImg.src = `${API_BASE_URL}${frame.thumbnail_url}`;
+                    console.log('Using thumbnail URL:', thumbnailImg.src);
+                } else if (frame.url) {
+                    thumbnailImg.src = `${API_BASE_URL}${frame.url}`;
+                    console.log('Using image URL:', thumbnailImg.src);
+                } else {
+                    useMockColor = true;
+                }
+                
+                // Create a colored background as fallback
+                const colorId = index % 20;
+                const hue = (colorId / 20) * 360;
+                frameElement.style.backgroundColor = `hsl(${hue}, 80%, 60%)`;
+                
+                // Skip appending the image if we're using a mock color
+                // We'll handle this in the conditional below
+                
+                thumbnailImg.alt = `Frame ${frame.frame_number || index + 1}`;
+                thumbnailImg.style.width = '100%';
+                thumbnailImg.style.height = '100%';
+                thumbnailImg.style.objectFit = 'cover';
+                
+                // Add error handling for images
+                thumbnailImg.onerror = () => {
+                    console.error('Failed to load image:', thumbnailImg.src);
+                    // Replace with a colored background
+                    const colorId = index % 20;
+                    const hue = (colorId / 20) * 360;
+                    thumbnailImg.style.display = 'none';
+                    frameElement.style.backgroundColor = `hsl(${hue}, 80%, 60%)`;
+                };
+                
+                const frameNumber = document.createElement('div');
+                frameNumber.className = 'frame-number';
+                frameNumber.textContent = `Frame ${frame.frame_number || index + 1}`;
+                
+                // Only append the thumbnail if we're not using a mock color
+                if (!useMockColor) {
+                    frameElement.appendChild(thumbnailImg);
+                }
+                frameElement.appendChild(frameNumber);
+                frameContainer.appendChild(frameElement);
+                
+                // Add click event to frames
+                frameElement.addEventListener('click', () => {
+                    // Remove selected class from all frames
+                    document.querySelectorAll('.frame').forEach(f => {
+                        f.classList.remove('selected');
+                    });
+                    
+                    // Add selected class to clicked frame
+                    frameElement.classList.add('selected');
+                    
+                    // Reset any previously highlighted frame
+                    document.querySelectorAll('.frame.highlighted').forEach(f => {
+                        if (f !== frameElement) {
+                            f.classList.remove('highlighted');
+                        }
+                    });
+                    
+                    // Reset any selected point
+                    if (selectedPoint) {
+                        // Reset the point appearance
+                        if (selectedPoint.userData.isEmphasis) {
+                            selectedPoint.material.emissive.setHex(0x888888);
+                        } else {
+                            const hue = ((selectedPoint.userData.frameId - 1) / frameCount * 360) % 360;
+                            selectedPoint.material.emissive.setHSL(hue/360, 0.8, 0.2);
+                        }
+                        // Reset scale to normal
+                        selectedPoint.scale.set(1.0, 1.0, 1.0);
+                        selectedPoint = null;
+                    }
+                    
+                    // Update status
+                    document.getElementById('status').textContent = `Selected Frame ${index + 1}`;
+                    
+                    // Toggle the point group for this frame
+                    updatePreview(index + 1);
+                });
+            });
+            
+            // Select first frame by default
+            if (frames.length > 0) {
+                const firstFrame = document.querySelector('.frame');
+                if (firstFrame) {
+                    firstFrame.classList.add('selected');
+                    // Highlight its points
+                    togglePointGroup(1);
+                }
+                
+                // Make all frames appear selected in the UI
+                document.querySelectorAll('.frame').forEach(frame => {
+                    if (frame !== firstFrame) {
+                        frame.classList.add('active');
+                    }
+                });
+            }
+        }
+        
+        // Session cleanup function
+        async function cleanupSession() {
+            if (currentSessionId) {
+                try {
+                    console.log(`Cleaning up session: ${currentSessionId}`);
+                    await fetch(`${API_BASE_URL}${API_PREFIX}/session/${currentSessionId}/close`, {
+                        method: 'POST'
+                    });
+                } catch (error) {
+                    console.error('Error cleaning up session:', error);
+                }
+            }
+        }
+        
+        // Initialize backend on page load
+        window.addEventListener('DOMContentLoaded', async () => {
+            // Create a new session
+            await createSession();
+        });
+        
+        // Clean up session when page is unloaded
+        window.addEventListener('beforeunload', () => {
+            if (currentSessionId) {
+                // Use a synchronous technique since beforeunload 
+                // doesn't wait for async operations
+                navigator.sendBeacon(`${API_BASE_URL}${API_PREFIX}/session/${currentSessionId}/close`);
+            }
+        });
+        
+        // Data source change handler
+        document.getElementById('data-source').addEventListener('change', (e) => {
+            const source = e.target.value;
+            document.getElementById('status').textContent = `Data source changed to: ${source}`;
+        });
+        
+        // Load Media button functionality
+        document.getElementById('load-media').addEventListener('click', async () => {
+            const dataSource = document.getElementById('data-source').value;
+            
+            if (dataSource === 'local') {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'video/*,image/*';
+                input.multiple = false; // Only one file at a time for simplicity
+                
+                input.onchange = async (e) => {
+                    const files = e.target.files;
+                    
+                    if (files.length > 0) {
+                        const file = files[0];
+                        const isVideo = file.type.startsWith('video/');
+                        const isImage = file.type.startsWith('image/');
+                        
+                        if (!isVideo && !isImage) {
+                            alert('Please select a video or image file.');
+                            return;
+                        }
+                        
+                        // Show loading overlay
+                        document.getElementById('loading-overlay').style.display = 'flex';
+                        
+                        try {
+                            // Upload the file to the server
+                            const uploadResult = await uploadFile(file);
+                            
+                            // Debug: Log the upload result to see what's returned
+                            console.log('Upload result:', uploadResult);
+                            
+                            // Check for server database error
+                            let usingMockData = false;
+                            if (uploadResult && uploadResult.error) {
+                                if (uploadResult.error.includes('table frames has no column named camera_pose')) {
+                                    console.warn('Database schema mismatch detected. Using mock data instead.');
+                                    document.getElementById('status').textContent = 
+                                        'Database needs updating. Generating mock visualization...';
+                                    usingMockData = true;
+                                }
+                            }
+                            
+                            if (uploadResult || usingMockData) {
+                                let frames = [];
+                                
+                                if (usingMockData) {
+                                    // Generate mock frames as fallback when server has database issue
+                                    frames = generateMockFrames(file, 10); // Generate 10 mock frames
+                                } else {
+                                    if (!uploadResult.asset_id) {
+                                        console.error('Error: No asset_id in upload result', uploadResult);
+                                        document.getElementById('status').textContent = 
+                                            'Error: Server did not return an asset ID';
+                                        document.getElementById('loading-overlay').style.display = 'none';
+                                        return;
+                                    }
+                                    
+                                    console.log('Using asset_id for frames:', uploadResult.asset_id);
+                                    
+                                    // Get the frames for the asset
+                                    frames = await getAssetFrames(uploadResult.asset_id);
+                                }
+                                
+                                // Debug: Log the first frame data to see what properties are available
+                                if (frames.length > 0) {
+                                    console.log('First frame data:', frames[0]);
+                                }
+                                
+                                // Load frames into the timeline
+                                loadFramesIntoTimeline(frames);
+                                
+                                // Generate 3D visualization from the loaded frames
+                                generatePointGroups(frames);
+                                
+                                // Show all point groups
+                                showAllPointGroups();
+                                
+                                // Highlight first frame's points
+                                if (frames.length > 0) {
+                                    togglePointGroup(1);
+                                }
+                                
+                                const statusText = usingMockData ? 
+                                    `Using mock data with ${frames.length} frames (server needs update)` :
+                                    `Loaded ${frames.length} frames from ${file.name}`;
+                                    
+                                document.getElementById('status').textContent = statusText;
+                            }
+                        } catch (error) {
+                            console.error('Error processing file:', error);
+                            document.getElementById('status').textContent = 
+                                `Error: ${error.message}`;
+                        } finally {
+                            // Hide loading overlay
+                            document.getElementById('loading-overlay').style.display = 'none';
+                        }
+                    }
+                };
+                
+                input.click();
+            } else if (dataSource === 'sample') {
+                // Show loading overlay
+                document.getElementById('loading-overlay').style.display = 'flex';
+                
+                try {
+                    // Load sample data (this would be a premade session on the server)
+                    // For now, we'll use mock data
+                    setTimeout(() => {
+                        document.getElementById('loading-overlay').style.display = 'none';
+                        document.getElementById('status').textContent = 'Loaded sample data';
+                        
+                        // For demo purposes, show the 3D points
+                        showAllPointGroups();
+                        togglePointGroup(1);
+                    }, 1500);
+                } catch (error) {
+                    console.error('Error loading sample data:', error);
+                    document.getElementById('status').textContent = `Error: ${error.message}`;
+                    document.getElementById('loading-overlay').style.display = 'none';
+                }
+            } else {
+                alert(`Loading from ${dataSource} will be implemented in a future update.`);
+            }
+        });
+        
+        // Export button functionality
+        document.getElementById('export-scene').addEventListener('click', () => {
+            alert('Scene export functionality will be implemented in a future update.');
+        });
+        
+        // Three.js setup
+        let scene, camera, renderer, controls;
+        let currentMode = 'orbit'; // Default control mode
+        let pointGroups = []; // Array to store point groups for each frame
+        let currentVisibleGroup = null; // Currently visible point group
+        let selectedPoint = null; // Currently selected point
+        let cameraFrustums = []; // Array to store camera frustum visualizations
+        let activeFrustum = null; // Current active frustum
+        
+        function initThreeJS() {
+            // Create scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x111111);
+            
+            // Create camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(5, 3, 8);
+            
+            // Create renderer
+            const canvas = document.getElementById('preview-canvas');
+            renderer = new THREE.WebGLRenderer({ 
+                canvas: canvas,
+                antialias: true 
+            });
+            renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+            
+            // Add light
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(1, 1, 1);
+            scene.add(directionalLight);
+            
+            // Add a grid helper
+            const gridHelper = new THREE.GridHelper(10, 10);
+            scene.add(gridHelper);
+            
+            // Point groups will be generated when frames are loaded
+            
+            // Set up raycaster for point selection
+            setupRaycaster();
+            
+            // Set up OrbitControls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.25;
+            controls.screenSpacePanning = false;
+            
+            // Handle window resize
+            window.addEventListener('resize', onWindowResize, false);
+            
+            // Set up control buttons
+            setupControlButtons();
+            
+            // Start animation loop
+            animate();
+        }
+        
+        function setupControlButtons() {
+            // Orbit control
+            document.getElementById('orbit-control').addEventListener('click', () => {
+                setActiveMode('orbit');
+                controls.mouseButtons = {
+                    LEFT: THREE.MOUSE.ROTATE,
+                    MIDDLE: THREE.MOUSE.DOLLY,
+                    RIGHT: THREE.MOUSE.PAN
+                };
+                document.getElementById('status').textContent = 'Orbit control mode';
+            });
+            
+            // Pan control
+            document.getElementById('pan-control').addEventListener('click', () => {
+                setActiveMode('pan');
+                controls.mouseButtons = {
+                    LEFT: THREE.MOUSE.PAN,
+                    MIDDLE: THREE.MOUSE.DOLLY,
+                    RIGHT: THREE.MOUSE.ROTATE
+                };
+                document.getElementById('status').textContent = 'Pan control mode';
+            });
+            
+            // Zoom control
+            document.getElementById('zoom-control').addEventListener('click', () => {
+                setActiveMode('zoom');
+                controls.mouseButtons = {
+                    LEFT: THREE.MOUSE.DOLLY,
+                    MIDDLE: THREE.MOUSE.PAN,
+                    RIGHT: THREE.MOUSE.ROTATE
+                };
+                document.getElementById('status').textContent = 'Zoom control mode';
+            });
+            
+            // Rotate object
+            document.getElementById('rotate-object').addEventListener('click', () => {
+                setActiveMode('rotate-object');
+                document.getElementById('status').textContent = 'Object rotation mode';
+                // In this mode, we keep the standard controls but add additional handling for rotating the object
+            });
+            
+            // Set the default mode as active
+            setActiveMode(currentMode);
+        }
+        
+        function setActiveMode(mode) {
+            currentMode = mode;
+            
+            // Reset all buttons
+            document.querySelectorAll('.scene-control-button').forEach(button => {
+                button.classList.remove('active');
+            });
+            
+            // Set the active button
+            document.getElementById(`${mode}-control`).classList.add('active');
+        }
+        
+        // Create a single point mesh
+        function createPointMesh(pointData, frameId) {
+            // Get position and color data
+            const position = pointData.position || [0, 0, 0];
+            const color = pointData.color || [1, 1, 1];
+            const isEmphasis = pointData.isEmphasis || false;
+            // Use provided size or default to a smaller size for emphasis points
+            const size = pointData.size || (isEmphasis ? 0.08 : 0.05);
+            
+            // Create geometry based on point type
+            const geometry = new THREE.SphereGeometry(
+                size, 
+                isEmphasis ? 10 : 8, 
+                isEmphasis ? 8 : 6
+            );
+            
+            // Create material based on point properties
+            const material = new THREE.MeshStandardMaterial({
+                color: new THREE.Color(color[0], color[1], color[2]),
+                emissive: new THREE.Color(color[0] * 0.5, color[1] * 0.5, color[2] * 0.5),
+                transparent: true,
+                opacity: 0.9,
+                metalness: isEmphasis ? 0.8 : 0.2,
+                roughness: isEmphasis ? 0.2 : 0.8
+            });
+            
+            // Create the point mesh
+            const point = new THREE.Mesh(geometry, material);
+            point.position.set(position[0], position[1], position[2]);
+            
+            // Store metadata in userData
+            point.userData = {
+                frameId: frameId,
+                pointId: pointData.id || 0,
+                isEmphasis: isEmphasis
+            };
+            
+            // Add glow effect for emphasis points
+            if (isEmphasis) {
+                const glowGeometry = new THREE.SphereGeometry(size * 1.5, 10, 8); // Reduced glow size
+                const glowMaterial = new THREE.MeshBasicMaterial({
+                    color: new THREE.Color(color[0], color[1], color[2]),
+                    transparent: true,
+                    opacity: 0.3
+                });
+                
+                const glowSphere = new THREE.Mesh(glowGeometry, glowMaterial);
+                point.add(glowSphere);
+            }
+            
+            return point;
+        }
+        
+        // Create camera frustum visualization
+        function createCameraFrustum(cameraData, frameId) {
+            if (!cameraData || !cameraData.position) {
+                return null;
+            }
+            
+            // Extract camera parameters
+            const position = cameraData.position;
+            const direction = cameraData.direction;
+            const up = cameraData.up;
+            const frustumParams = cameraData.frustum || {
+                fov: 45,
+                aspect: 16/9,
+                near: 0.1,
+                far: 2
+            };
+            
+            // Create a group for the frustum visualization
+            const frustumGroup = new THREE.Group();
+            frustumGroup.name = `CameraFrustum-${frameId}`;
+            frustumGroup.userData = { frameId: frameId };
+            
+            // Create a camera helper (frustum visualization)
+            // Make frustum 10% of original size
+            const frustumCamera = new THREE.PerspectiveCamera(
+                frustumParams.fov,
+                frustumParams.aspect,
+                frustumParams.near * 0.1, // 10% of original size
+                frustumParams.far * 0.1   // 10% of original size
+            );
+            
+            // Position the camera
+            frustumCamera.position.set(position[0], position[1], position[2]);
+            
+            // Create a target point to look at
+            const targetX = position[0] + direction[0];
+            const targetY = position[1] + direction[1];
+            const targetZ = position[2] + direction[2];
+            frustumCamera.lookAt(targetX, targetY, targetZ);
+            
+            // Create helper
+            const helper = new THREE.CameraHelper(frustumCamera);
+            helper.visible = true;
+            
+            // Add helper to the group
+            frustumGroup.add(helper);
+            
+            // Create a smaller camera icon at the position
+            const cameraIcon = new THREE.Mesh(
+                new THREE.ConeGeometry(0.08, 0.16, 8), // Smaller cone - slightly larger than regular points
+                new THREE.MeshBasicMaterial({ color: 0x00aaff })
+            );
+            
+            // Orient the cone to point in the camera direction
+            cameraIcon.position.set(position[0], position[1], position[2]);
+            cameraIcon.lookAt(targetX, targetY, targetZ);
+            cameraIcon.rotateX(Math.PI / 2); // Adjust to point forward
+            
+            // Add camera icon to group
+            frustumGroup.add(cameraIcon);
+            
+            return { group: frustumGroup, camera: frustumCamera };
+        }
+        
+        // Generate point groups from frame data
+        function generatePointGroups(frames) {
+            // Clear existing groups
+            pointGroups.forEach(group => {
+                scene.remove(group);
+            });
+            pointGroups = [];
+            
+            // Clear existing frustums
+            cameraFrustums.forEach(frustum => {
+                if (frustum && frustum.group) {
+                    scene.remove(frustum.group);
+                }
+            });
+            cameraFrustums = [];
+            
+            // Generate new groups from frame data
+            frames.forEach((frame, index) => {
+                try {
+                    // Create point group
+                    const group = new THREE.Group();
+                    group.name = `PointGroup-${index+1}`;
+                    group.userData = { frameId: index+1 };
+                    group.visible = true; // All visible by default
+                    
+                    // Parse point cloud data if available
+                    let pointCloudData = [];
+                    if (frame.point_cloud_data) {
+                        try {
+                            pointCloudData = JSON.parse(frame.point_cloud_data);
+                        } catch (e) {
+                            console.error('Error parsing point cloud data:', e);
+                        }
+                    }
+                    
+                    // Create points
+                    pointCloudData.forEach((pointData, pointIndex) => {
+                        const point = createPointMesh(pointData, index+1);
+                        group.add(point);
+                    });
+                    
+                    // Add group to scene and track it
+                    scene.add(group);
+                    pointGroups.push(group);
+                    
+                    // Parse camera pose data if available
+                    let cameraPoseData = null;
+                    if (frame.camera_pose) {
+                        try {
+                            cameraPoseData = JSON.parse(frame.camera_pose);
+                        } catch (e) {
+                            console.error('Error parsing camera pose data:', e);
+                        }
+                    }
+                    
+                    // Create camera frustum
+                    if (cameraPoseData) {
+                        const frustum = createCameraFrustum(cameraPoseData, index+1);
+                        if (frustum) {
+                            scene.add(frustum.group);
+                            cameraFrustums.push(frustum);
+                        }
+                    }
+                } catch (error) {
+                    console.error(`Error creating 3D elements for frame ${index+1}:`, error);
+                }
+            });
+            
+            console.log(`Generated ${pointGroups.length} point groups and ${cameraFrustums.length} camera frustums`);
+        }
+        
+        // Set up raycaster for point selection
+        function setupRaycaster() {
+            const raycaster = new THREE.Raycaster();
+            const mouse = new THREE.Vector2();
+            
+            // Process click on canvas
+            const canvas = renderer.domElement;
+            canvas.addEventListener('click', (event) => {
+                // Calculate mouse position in normalized device coordinates (-1 to +1)
+                const rect = canvas.getBoundingClientRect();
+                mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+                mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+                
+                // Set raycaster
+                raycaster.setFromCamera(mouse, camera);
+                
+                // Find all visible point groups
+                const visibleGroups = pointGroups.filter(group => group.visible);
+                
+                if (visibleGroups.length === 0) return;
+                
+                // Get all the points from visible groups
+                const allPoints = [];
+                visibleGroups.forEach(group => {
+                    group.children.forEach(point => {
+                        allPoints.push(point);
+                    });
+                });
+                
+                // Check for intersections
+                const intersects = raycaster.intersectObjects(allPoints);
+                
+                if (intersects.length > 0) {
+                    const clickedPoint = intersects[0].object;
+                    const frameId = clickedPoint.userData.frameId;
+                    
+                    // Check if the clicked point is already selected
+                    if (selectedPoint === clickedPoint) {
+                        // Deselect the point
+                        if (clickedPoint.userData.isEmphasis) {
+                            clickedPoint.material.emissive.setHex(0x888888);
+                        } else {
+                            const hue = ((clickedPoint.userData.frameId - 1) / frameCount * 360) % 360;
+                            clickedPoint.material.emissive.setHSL(hue/360, 0.8, 0.2);
+                        }
+                        // Reset scale to normal
+                        clickedPoint.scale.set(1.0, 1.0, 1.0);
+                        
+                        // Reset all other points in the group
+                        pointGroups.forEach(group => {
+                            if (group.userData.frameId === frameId) {
+                                group.children.forEach(point => {
+                                    if (point !== clickedPoint && !point.userData.isEmphasis) {
+                                        const hue = ((frameId - 1) / frameCount * 360) % 360;
+                                        point.material.emissive.setHSL(hue/360, 0.8, 0.2);
+                                        // Ensure all points are at normal scale
+                                        point.scale.set(1.0, 1.0, 1.0);
+                                    }
+                                });
+                            }
+                        });
+                        
+                        // Remove highlight from frame
+                        const frameEl = document.querySelector(`.frame[data-id="${frameId}"]`);
+                        if (frameEl) {
+                            frameEl.classList.remove('highlighted');
+                        }
+                        
+                        // Clear selection
+                        selectedPoint = null;
+                        
+                        // Update status
+                        document.getElementById('status').textContent = `Deselected point from Frame ${frameId}`;
+                        return;
+                    }
+                    
+                    // Deselect previous point if any
+                    if (selectedPoint) {
+                        // Reset the previous point appearance
+                        if (selectedPoint.userData.isEmphasis) {
+                            selectedPoint.material.emissive.setHex(0x888888);
+                        } else {
+                            const hue = ((selectedPoint.userData.frameId - 1) / frameCount * 360) % 360;
+                            selectedPoint.material.emissive.setHSL(hue/360, 0.8, 0.2);
+                        }
+                        // Reset scale to normal
+                        selectedPoint.scale.set(1.0, 1.0, 1.0);
+                        
+                        // Reset previous frame highlight
+                        const previousFrameId = selectedPoint.userData.frameId;
+                        if (previousFrameId !== frameId) {
+                            const previousFrameEl = document.querySelector(`.frame[data-id="${previousFrameId}"]`);
+                            if (previousFrameEl) {
+                                previousFrameEl.classList.remove('highlighted');
+                            }
+                            
+                            // Reset all points in the previous group
+                            pointGroups.forEach(group => {
+                                if (group.userData.frameId === previousFrameId) {
+                                    group.children.forEach(point => {
+                                        if (!point.userData.isEmphasis) {
+                                            const hue = ((previousFrameId - 1) / frameCount * 360) % 360;
+                                            point.material.emissive.setHSL(hue/360, 0.8, 0.2);
+                                            // Reset scale
+                                            point.scale.set(1.0, 1.0, 1.0);
+                                        }
+                                    });
+                                }
+                            });
+                        }
+                    }
+                    
+                    // Highlight the clicked point with a reduced glow effect
+                    clickedPoint.material.emissive.setHex(0xFF9900);
+                    // Scale down to make it only slightly larger
+                    clickedPoint.scale.set(1.1, 1.1, 1.1);
+                    selectedPoint = clickedPoint;
+                    
+                    // Highlight all points from the same frame with a subtle effect
+                    pointGroups.forEach(group => {
+                        if (group.userData.frameId === frameId) {
+                            group.children.forEach(point => {
+                                if (point !== clickedPoint && !point.userData.isEmphasis) {
+                                    point.material.emissive.setHex(0x444444);
+                                    // Ensure all other points are at normal scale
+                                    point.scale.set(1.0, 1.0, 1.0);
+                                }
+                            });
+                        }
+                    });
+                    
+                    // Highlight the corresponding frame in the timeline
+                    const frameEl = document.querySelector(`.frame[data-id="${frameId}"]`);
+                    if (frameEl) {
+                        frameEl.classList.add('highlighted');
+                        // Ensure it's visible in the timeline
+                        frameEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+                    }
+                    
+                    // Update status
+                    document.getElementById('status').textContent = `Selected point from Frame ${frameId}`;
+                }
+            });
+        }
+        
+        // Generate mock frames for testing or as a fallback when server fails
+        function generateMockFrames(file, count = 10) {
+            console.log(`Generating ${count} mock frames from ${file.name}`);
+            const frames = [];
+            
+            // Create a readable name for the mock frame images
+            const fileType = file.type.startsWith('video/') ? 'video' : 'image';
+            const fileName = file.name.replace(/\.[^/.]+$/, ""); // Remove extension
+            
+            for (let i = 0; i < count; i++) {
+                // Generate a unique ID for each frame
+                const frameId = `mock-frame-${i}-${Date.now()}`;
+                
+                // Create colored placeholder squares instead of real images
+                // We'll use HSL colors to make them visually distinct
+                const hue = (i / count) * 360;
+                
+                // Generate mock point cloud data with random 3D points
+                const pointCloudData = generateMockPointCloud(i, count);
+                
+                // Generate a mock camera pose
+                const cameraPose = generateMockCameraPose(i, count);
+                
+                frames.push({
+                    id: frameId,
+                    frame_number: i + 1,
+                    url: '', // Empty URL since we're using colored backgrounds
+                    thumbnail_url: '',
+                    timestamp: i * 1000, // Mock timestamp in ms
+                    point_cloud_data: JSON.stringify(pointCloudData),
+                    camera_pose: JSON.stringify(cameraPose)
+                });
+            }
+            
+            return frames;
+        }
+        
+        // Generate mock point cloud data
+        function generateMockPointCloud(frameIndex, totalFrames) {
+            const points = [];
+            const pointCount = 100 + Math.floor(Math.random() * 100); // 100-200 points (2x more)
+            
+            // Base hue for this frame (different for each frame)
+            const baseHue = (frameIndex / totalFrames) * 360;
+            
+            // Create regular grid of points with some random variation
+            for (let i = 0; i < pointCount; i++) {
+                // Calculate position with some randomization
+                // Make a circular pattern that changes with the frame number
+                const angle = (i / pointCount) * Math.PI * 2;
+                const radius = 2 + Math.random() * 0.5;
+                const progress = frameIndex / totalFrames; // 0 to 1
+                
+                // Create a path that moves in a circle and then up
+                const x = Math.cos(angle + progress * Math.PI) * radius;
+                const z = Math.sin(angle + progress * Math.PI) * radius;
+                const y = 0.5 + progress * 2; // Move upward as frames progress
+                
+                // Random color variation around the base hue
+                const hue = (baseHue + Math.random() * 30) % 360;
+                const saturation = 0.6 + Math.random() * 0.4;
+                const lightness = 0.5 + Math.random() * 0.3;
+                
+                // Convert HSL to RGB
+                const h = hue / 360;
+                const s = saturation;
+                const l = lightness;
+                
+                let r, g, b;
+                if (s === 0) {
+                    r = g = b = l;
+                } else {
+                    const hue2rgb = (p, q, t) => {
+                        if (t < 0) t += 1;
+                        if (t > 1) t -= 1;
+                        if (t < 1/6) return p + (q - p) * 6 * t;
+                        if (t < 1/2) return q;
+                        if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+                        return p;
+                    };
+                    
+                    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+                    const p = 2 * l - q;
+                    
+                    r = hue2rgb(p, q, h + 1/3);
+                    g = hue2rgb(p, q, h);
+                    b = hue2rgb(p, q, h - 1/3);
+                }
+                
+                // Add a few emphasis points
+                const isEmphasis = i % 10 === 0;
+                
+                points.push({
+                    id: i,
+                    position: [x, y, z],
+                    color: [r, g, b],
+                    isEmphasis: isEmphasis,
+                    size: isEmphasis ? 0.08 : 0.05 // Reduced emphasis point size
+                });
+            }
+            
+            return points;
+        }
+        
+        // Generate mock camera pose
+        function generateMockCameraPose(frameIndex, totalFrames) {
+            const progress = frameIndex / totalFrames; // 0 to 1
+            
+            // Create a camera path that orbits the scene
+            const angle = progress * Math.PI * 2;
+            const radius = 5;
+            const height = 2 + progress * 2; // Camera rises as frames progress
+            
+            const camX = Math.cos(angle) * radius;
+            const camZ = Math.sin(angle) * radius;
+            const camY = height;
+            
+            // Make the camera look at the center of the scene
+            const dirX = -camX;
+            const dirY = -camY + 1; // Look slightly downward
+            const dirZ = -camZ;
+            
+            // Normalize direction vector
+            const length = Math.sqrt(dirX*dirX + dirY*dirY + dirZ*dirZ);
+            
+            return {
+                position: [camX, camY, camZ],
+                direction: [dirX/length, dirY/length, dirZ/length],
+                up: [0, 1, 0],
+                frustum: {
+                    fov: 45,
+                    aspect: 16/9,
+                    near: 0.1,
+                    far: 10
+                }
+            };
+        }
+        
+        function loadMockModel() {
+            // Show all point groups as an alternative visualization
+            showAllPointGroups();
+            
+            // Reset camera position
+            camera.position.set(5, 3, 8);
+            controls.update();
+        }
+        
+        // Highlight a specific point group and camera frustum
+        function togglePointGroup(frameId) {
+            // Find corresponding point group
+            const group = pointGroups.find(group => group.userData.frameId === frameId);
+            if (!group) return;
+            
+            // First reset all groups to normal appearance (semi-transparent)
+            pointGroups.forEach(g => {
+                g.children.forEach(point => {
+                    // Reduce opacity for non-selected groups
+                    if (g !== group) {
+                        point.material.opacity = 0.3;
+                    }
+                    
+                    if (point.userData.isEmphasis) {
+                        // Reset emphasis point
+                        point.scale.set(1, 1, 1);
+                        // Original emissive intensity
+                        const color = point.material.color;
+                        point.material.emissive.set(color).multiplyScalar(0.3);
+                    } else {
+                        // Reset regular point emissive
+                        const color = point.material.color;
+                        point.material.emissive.set(color).multiplyScalar(0.1);
+                    }
+                });
+            });
+            
+            // Highlight the selected group's points
+            group.children.forEach(point => {
+                // Full opacity for selected group
+                point.material.opacity = 1.0;
+                
+                if (point.userData.isEmphasis) {
+                    // Make emphasis point larger
+                    point.scale.set(1.5, 1.5, 1.5);
+                    // Brighter emissive
+                    const color = point.material.color;
+                    point.material.emissive.set(color).multiplyScalar(0.8);
+                } else {
+                    // Brighter regular points
+                    const color = point.material.color;
+                    point.material.emissive.set(color).multiplyScalar(0.5);
+                }
+            });
+            
+            // Handle camera frustums - make all semi-transparent
+            cameraFrustums.forEach((frustum, index) => {
+                if (!frustum || !frustum.group) return;
+                
+                // Make all camera frustums semi-transparent
+                frustum.group.traverse(child => {
+                    if (child.material) {
+                        child.material.opacity = 0.3;
+                        child.material.transparent = true;
+                    }
+                });
+                
+                // Hide all but the active frustum
+                frustum.group.visible = false;
+            });
+            
+            // Find and highlight the corresponding camera frustum
+            const frustum = cameraFrustums[frameId - 1];
+            if (frustum && frustum.group) {
+                // Show the frustum for this frame
+                frustum.group.visible = true;
+                
+                // Make frustum fully opaque
+                frustum.group.traverse(child => {
+                    if (child.material) {
+                        child.material.opacity = 1.0;
+                    }
+                });
+                
+                activeFrustum = frustum;
+            }
+            
+            currentVisibleGroup = group;
+        }
+        
+        // Show all point groups with equal highlighting
+        function showAllPointGroups() {
+            // Reset all groups to normal appearance with full visibility
+            pointGroups.forEach(group => {
+                group.visible = true;
+                group.children.forEach(point => {
+                    if (point.userData.isEmphasis) {
+                        // Reset emphasis point 
+                        point.scale.set(1.2, 1.2, 1.2);
+                        // Medium bright emissive based on color
+                        const color = point.material.color;
+                        point.material.emissive.set(color).multiplyScalar(0.5);
+                    } else {
+                        // Reset regular point with medium opacity
+                        const color = point.material.color;
+                        point.material.emissive.set(color).multiplyScalar(0.3);
+                        point.material.opacity = 0.7;
+                    }
+                });
+            });
+            
+            // Show all camera frustums with medium opacity
+            cameraFrustums.forEach(frustum => {
+                if (frustum && frustum.group) {
+                    frustum.group.visible = true;
+                    
+                    // Make frustums semi-transparent
+                    frustum.group.traverse(child => {
+                        if (child.material) {
+                            child.material.opacity = 0.5;
+                            child.material.transparent = true;
+                        }
+                    });
+                }
+            });
+            
+            currentVisibleGroup = null;
+            activeFrustum = null;
+        }
+        
+        function onWindowResize() {
+            const container = document.querySelector('.preview-container');
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Update controls
+            controls.update();
+            
+            // Animate the emphasis points with a subtle pulsing effect (optimized)
+            // Only animate the highlighted group and limit updates
+            const time = Date.now() * 0.001;
+            const scale = 1.0 + 0.2 * Math.sin(time * 2.0);
+            
+            // Prioritize animating the currently highlighted group
+            if (currentVisibleGroup) {
+                currentVisibleGroup.children.forEach(point => {
+                    if (point.userData.isEmphasis && point.children.length > 0) {
+                        point.children[0].scale.set(scale, scale, scale);
+                    }
+                });
+            } 
+            
+            // Animate other emphasis points at a reduced frequency (every 4 frames)
+            if (Math.floor(time * 10) % 4 === 0) {
+                pointGroups.forEach(group => {
+                    if (group !== currentVisibleGroup && group.visible) {
+                        const emphasisPoint = group.children.find(p => p.userData.isEmphasis);
+                        if (emphasisPoint && emphasisPoint.children.length > 0) {
+                            emphasisPoint.children[0].scale.set(scale * 0.8, scale * 0.8, scale * 0.8);
+                        }
+                    }
+                });
+            }
+            
+            renderer.render(scene, camera);
+        }
+        
+        function updatePreview(frameId) {
+            // Toggle the point group for this frame
+            togglePointGroup(frameId);
+        }
+        
+        // Initialize marker variable to avoid timing issues
+        let threeJSInitialized = false;
+        
+        // Function to initialize the visualization state after Three.js is ready
+        function initializeVisualization() {
+            if (!threeJSInitialized) return;
+            
+            // Show all point groups
+            showAllPointGroups();
+            
+            // Highlight the first frame's points
+            if (frameCount > 0) {
+                togglePointGroup(1);
+                document.getElementById('status').textContent = 'Visualization ready: All frames loaded';
+            }
+        }
+        
+        // Initialize Three.js after the page loads
+        window.addEventListener('load', () => {
+            // Add Three.js OrbitControls
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js';
+            document.head.appendChild(script);
+            
+            script.onload = () => {
+                // Initialize Three.js first
+                initThreeJS();
+                onWindowResize(); // Call once to set initial size
+                
+                // Mark as initialized and set up the visualization
+                threeJSInitialized = true;
+                
+                // Set a short timeout to ensure everything is properly loaded
+                setTimeout(initializeVisualization, 100);
+            };
+        });
+    </script>
+</body>
+</html>
