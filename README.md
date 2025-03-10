@@ -47,19 +47,41 @@ pip install -r requirements.txt
 
 #### Running the Backend Server
 
-##### Development Mode
+We provide a convenient script to manage the server:
 
 ```bash
-python app.py
+# Start development server
+./server.sh start dev
+
+# Start production server (uses gunicorn)
+./server.sh start
+
+# Stop any running server
+./server.sh stop
+
+# Restart server
+./server.sh restart
+
+# Check server status
+./server.sh status
+
+# Use a different port
+PORT=8080 ./server.sh start
 ```
 
 The server will run at http://localhost:5000 by default.
 
-##### Production Mode
+##### Manual Starting (Alternative Methods)
 
 ```bash
+# Development Mode
+python app.py
+
+# Production Mode
 gunicorn --bind 0.0.0.0:5000 wsgi:app
 ```
+
+> **Note**: If you get an "Address already in use" error, use `./server.sh stop` to free the port.
 
 #### Testing the Backend
 

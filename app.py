@@ -495,12 +495,18 @@ def health_check():
     """Health check endpoint."""
     return jsonify({"status": "healthy", "timestamp": time.time()})
 
-@app.route('/api/session/create', methods=['POST'])
+@app.route('/api/session/create', methods=['GET', 'POST'])
 def create_session():
     """Create a new session."""
     session_id = str(uuid.uuid4())
-    name = request.form.get('name', f"Session {session_id[:8]}")
-    description = request.form.get('description', '')
+    
+    # Handle both GET and POST methods
+    if request.method == 'POST':
+        name = request.form.get('name', f"Session {session_id[:8]}")
+        description = request.form.get('description', '')
+    else:  # GET method
+        name = request.args.get('name', f"Session {session_id[:8]}")
+        description = request.args.get('description', '')
     
     # Register this as an active session
     register_session_activity(session_id)

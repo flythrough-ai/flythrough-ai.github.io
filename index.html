@@ -329,16 +329,32 @@
                         // Show loading overlay
                         loadingOverlay.classList.add('visible');
                         
-                        // Create a session and upload the file
+                        // Prepare to create a session and upload the file
                         console.log('Starting API session create request...');
                         fileInfo.innerHTML += '<br>Creating session...';
                         
+                        // First try with GET method since we are getting 405 errors with POST
                         fetch('/api/session/create', {
-                            method: 'POST',
-                            body: new FormData() // Empty form data for default session name
+                            method: 'GET'
                         })
                         .then(response => {
-                            console.log('Session create response:', response.status);
+                            console.log('Session create GET response:', response.status);
+                            
+                            if (!response.ok && response.status === 405) {
+                                // Method not allowed, try with POST
+                                console.log('GET not allowed, trying POST method');
+                                fileInfo.innerHTML += '<br>Trying alternative method...';
+                                
+                                return fetch('/api/session/create', {
+                                    method: 'POST',
+                                    body: new FormData() // Empty form data for default session name
+                                });
+                            }
+                            
+                            return response;
+                        })
+                        .then(response => {
+                            console.log('Final session create response:', response.status);
                             if (!response.ok) {
                                 throw new Error(`Server responded with ${response.status}`);
                             }

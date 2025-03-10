@@ -342,23 +342,40 @@
         // Create a new session when the page loads
         async function createSession() {
             try {
+                // Try GET request first - the server might be expecting GET instead of POST
                 const url = `${API_BASE_URL}${API_PREFIX}/session/create`;
                 console.log(`Attempting to create session: ${url}`);
                 document.getElementById('status').textContent = 'Creating new session...';
                 
+                // Try with GET instead of POST since we're getting 405 Method Not Allowed
                 const response = await fetch(url, {
-                    method: 'POST',
-                    body: new FormData() // Empty form data for default session name
+                    method: 'GET'
                 });
                 
-                logApiCall('POST', url, response);
+                logApiCall('GET', url, response);
                 
                 if (!response.ok) {
-                    throw new Error(`Server responded with ${response.status}`);
+                    // If GET fails, try POST
+                    console.log('GET failed, trying POST method');
+                    const postResponse = await fetch(url, {
+                        method: 'POST',
+                        body: new FormData() // Empty form data for default session name
+                    });
+                    
+                    logApiCall('POST', url, postResponse);
+                    
+                    if (!postResponse.ok) {
+                        throw new Error(`Server responded with ${postResponse.status}`);
+                    }
+                    
+                    const data = await postResponse.json();
+                    currentSessionId = data.session_id;
+                } else {
+                    // GET worked
+                    const data = await response.json();
+                    currentSessionId = data.session_id;
                 }
                 
-                const data = await response.json();
-                currentSessionId = data.session_id;
                 console.log(`Created new session: ${currentSessionId}`);
                 document.getElementById('status').textContent = `Created new session: ${currentSessionId}`;
                 return currentSessionId;
@@ -680,26 +697,15 @@
                 document.getElementById('loading-overlay').style.display = 'flex';
                 
                 try {
-                    // Check if we're in demo mode
-                    if (demoMode || sessionId.startsWith('mock-session')) {
-                        console.log('Running in demo/mock mode');
-                        document.getElementById('status').textContent = 'Running in demo mode...';
-                        
-                        // Create mock file object for demo
-                        const mockFile = new File(
-                            [new ArrayBuffer(1024)], // dummy content
-                            "demo_video.mp4",
-                            { type: "video/mp4" }
-                        );
-                        
-                        // Generate mock frames
-                        const mockFrames = generateMockFrames(mockFile, 10);
-                        
+                    // Get the frames for the asset from the server
+                    const frames = await getAssetFrames(assetId);
+                    
+                    if (frames.length > 0) {
                         // Load frames into the timeline
-                        loadFramesIntoTimeline(mockFrames);
+                        loadFramesIntoTimeline(frames);
                         
-                        // Generate 3D visualization
-                        generatePointGroups(mockFrames);
+                        // Generate 3D visualization from the loaded frames
+                        generatePointGroups(frames);
                         
                         // Show all point groups
                         showAllPointGroups();
@@ -708,29 +714,9 @@
                         togglePointGroup(1);
                         
                         document.getElementById('status').textContent = 
-                            `Demo mode: Generated ${mockFrames.length} mock frames`;
+                            `Loaded ${frames.length} frames from existing session`;
                     } else {
-                        // Get the frames for the asset from the server
-                        const frames = await getAssetFrames(assetId);
-                        
-                        if (frames.length > 0) {
-                            // Load frames into the timeline
-                            loadFramesIntoTimeline(frames);
-                            
-                            // Generate 3D visualization from the loaded frames
-                            generatePointGroups(frames);
-                            
-                            // Show all point groups
-                            showAllPointGroups();
-                            
-                            // Highlight first frame's points
-                            togglePointGroup(1);
-                            
-                            document.getElementById('status').textContent = 
-                                `Loaded ${frames.length} frames from existing session`;
-                        } else {
-                            throw new Error('No frames found for this asset');
-                        }
+                        throw new Error('No frames found for this asset');
                     }
                 } catch (error) {
                     console.error('Error loading asset:', error);
