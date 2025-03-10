@@ -333,21 +333,42 @@
                         console.log('Starting API session create request...');
                         fileInfo.innerHTML += '<br>Creating session...';
                         
-                        // First try with GET method since we are getting 405 errors with POST
-                        fetch('/api/session/create', {
-                            method: 'GET'
+                        // Check if server is running via health endpoint
+                        fetch(window.location.origin + '/api/health')
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(`Health check failed with status ${response.status}`);
+                            }
+                            return response.json();
+                        })
+                        .then(healthData => {
+                            console.log('Server is healthy:', healthData);
+                            fileInfo.innerHTML += `<br>Server is running (${healthData.active_sessions?.length || 0} active sessions)`;
+                            
+                            // Now try to create a session with POST method
+                            const formData = new FormData();
+                            formData.append('name', `Web Upload ${new Date().toLocaleTimeString()}`);
+                            
+                            // Use full origin URL to avoid relative path issues
+                            const apiUrl = window.location.origin + '/api/session/create';
+                            console.log('Creating session at URL:', apiUrl);
+                            
+                            return fetch(apiUrl, {
+                                method: 'POST',
+                                body: formData
+                            });
                         })
                         .then(response => {
-                            console.log('Session create GET response:', response.status);
+                            console.log('Session create response:', response.status, response.statusText);
+                            fileInfo.innerHTML += `<br>Create session response: ${response.status} ${response.statusText}`;
                             
-                            if (!response.ok && response.status === 405) {
-                                // Method not allowed, try with POST
-                                console.log('GET not allowed, trying POST method');
+                            if (!response.ok) {
+                                // Try GET method as fallback
+                                console.log('POST failed, trying GET method');
                                 fileInfo.innerHTML += '<br>Trying alternative method...';
                                 
-                                return fetch('/api/session/create', {
-                                    method: 'POST',
-                                    body: new FormData() // Empty form data for default session name
+                                return fetch(window.location.origin + '/api/session/create', {
+                                    method: 'GET'
                                 });
                             }
                             
@@ -355,10 +376,23 @@
                         })
                         .then(response => {
                             console.log('Final session create response:', response.status);
+                            console.log('Response headers:', [...response.headers.entries()]);
+                            
                             if (!response.ok) {
                                 throw new Error(`Server responded with ${response.status}`);
                             }
-                            return response.json();
+                            
+                            // Debug the response before parsing JSON
+                            return response.text().then(text => {
+                                console.log('Raw response:', text);
+                                try {
+                                    // Try to parse as JSON
+                                    return JSON.parse(text);
+                                } catch (err) {
+                                    console.error('Failed to parse JSON response:', err);
+                                    throw new Error(`Invalid JSON response: ${text}`);
+                                }
+                            });
                         })
                         .then(sessionData => {
                             // Got session ID, now upload the file
@@ -369,7 +403,11 @@
                             const formData = new FormData();
                             formData.append('file', file);
                             
-                            return fetch(`/api/session/${sessionId}/upload`, {
+                            // Use full origin URL to avoid relative path issues
+                            const uploadUrl = `${window.location.origin}/api/session/${sessionId}/upload`;
+                            console.log('Uploading file to URL:', uploadUrl);
+                            
+                            return fetch(uploadUrl, {
                                 method: 'POST',
                                 body: formData
                             })
@@ -406,7 +444,9 @@
                             
                             // Redirect to editor page with session and asset IDs
                             setTimeout(() => {
-                                window.location.href = `editor.html?session=${data.session_id}&asset=${data.asset_id}`;
+                                const editorUrl = `${window.location.origin}/editor.html?session=${data.session_id}&asset=${data.asset_id}`;
+                            console.log('Redirecting to editor:', editorUrl);
+                            window.location.href = editorUrl;
                             }, 1000); // Small delay to show success message
                         })
                         .catch(error => {

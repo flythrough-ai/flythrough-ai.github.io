@@ -23,7 +23,7 @@ logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
+app = Flask(__name__, static_url_path='', static_folder='.')
 CORS(app)  # Enable CORS for all routes
 
 # Configuration
@@ -490,53 +490,83 @@ def process_image(image_path, output_folder):
     }
 
 # Routes
+@app.route('/')
+def serve_index():
+    """Serve the index.html file."""
+    return app.send_static_file('index.html')
+
+@app.route('/editor.html')
+def serve_editor():
+    """Serve the editor.html file."""
+    return app.send_static_file('editor.html')
+
 @app.route('/api/health', methods=['GET'])
 def health_check():
     """Health check endpoint."""
-    return jsonify({"status": "healthy", "timestamp": time.time()})
+    # Log current active sessions for debugging
+    with session_lock:
+        active_session_count = len(active_sessions)
+        logger.info(f"Health check: {active_session_count} active sessions")
+        if active_session_count > 0:
+            logger.info(f"Active sessions: {', '.join(list(active_sessions))}")
+    
+    return jsonify({
+        "status": "healthy", 
+        "timestamp": time.time(),
+        "active_sessions": list(active_sessions)
+    })
 
 @app.route('/api/session/create', methods=['GET', 'POST'])
 def create_session():
     """Create a new session."""
+    logger.info(f"Session create request received: method={request.method}, path={request.path}")
+    
     session_id = str(uuid.uuid4())
     
     # Handle both GET and POST methods
     if request.method == 'POST':
         name = request.form.get('name', f"Session {session_id[:8]}")
         description = request.form.get('description', '')
+        logger.info(f"POST request form data: {dict(request.form)}")
     else:  # GET method
         name = request.args.get('name', f"Session {session_id[:8]}")
         description = request.args.get('description', '')
+        logger.info(f"GET request args: {dict(request.args)}")
     
-    # Register this as an active session
-    register_session_activity(session_id)
-    
-    conn = sqlite3.connect(DATABASE_PATH)
-    cursor = conn.cursor()
-    
-    cursor.execute(
-        "INSERT INTO sessions (id, created_at, name, description) VALUES (?, ?, ?, ?)",
-        (session_id, int(time.time()), name, description)
-    )
-    
-    conn.commit()
-    conn.close()
-    
-    # Create session directory
-    session_dir = os.path.join(app.config['UPLOAD_FOLDER'], session_id)
-    os.makedirs(session_dir, exist_ok=True)
-    
-    # Create thumbnail directory for this session
-    thumb_dir = os.path.join(app.config['THUMBNAIL_FOLDER'], session_id)
-    os.makedirs(thumb_dir, exist_ok=True)
-    
-    logger.info(f"Created new session: {session_id}")
-    
-    return jsonify({
-        "session_id": session_id,
-        "name": name,
-        "created_at": int(time.time())
-    })
+    try:
+        # Register this as an active session
+        register_session_activity(session_id)
+        
+        conn = sqlite3.connect(DATABASE_PATH)
+        cursor = conn.cursor()
+        
+        cursor.execute(
+            "INSERT INTO sessions (id, created_at, name, description) VALUES (?, ?, ?, ?)",
+            (session_id, int(time.time()), name, description)
+        )
+        
+        conn.commit()
+        conn.close()
+        
+        # Create session directory
+        session_dir = os.path.join(app.config['UPLOAD_FOLDER'], session_id)
+        os.makedirs(session_dir, exist_ok=True)
+        
+        # Create thumbnail directory for this session
+        thumb_dir = os.path.join(app.config['THUMBNAIL_FOLDER'], session_id)
+        os.makedirs(thumb_dir, exist_ok=True)
+        
+        # Log success
+        logger.info(f"Created new session successfully: {session_id}")
+        
+        return jsonify({
+            "session_id": session_id,
+            "name": name,
+            "created_at": int(time.time())
+        })
+    except Exception as e:
+        logger.error(f"Error creating session: {str(e)}")
+        return jsonify({"error": f"Failed to create session: {str(e)}"}), 500
 
 @app.route('/api/session/<session_id>/upload', methods=['POST'])
 def upload_file(session_id):

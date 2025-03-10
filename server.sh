@@ -47,10 +47,14 @@ case "$1" in
     # Check if we're using development or production mode
     if [ "$2" = "dev" ]; then
       echo "Starting development server on port $PORT..."
+      # Set Flask to debug mode for better error messages
+      export FLASK_ENV=development
+      export FLASK_DEBUG=1
       python app.py
     else
       echo "Starting production server on port $PORT..."
-      gunicorn --bind 0.0.0.0:"$PORT" wsgi:app
+      # Increase Gunicorn verbosity for debugging
+      gunicorn --bind 0.0.0.0:"$PORT" wsgi:app --log-level debug
     fi
     ;;
     
