@@ -3,7 +3,7 @@ services:
   - type: web
     name: flythrough-ai
     runtime: python
-    buildCommand: pip install --upgrade pip && pip install -r requirements.txt && python update_db.py
+    buildCommand: ./setup_render.sh
     startCommand: gunicorn wsgi:app
     env: python
     disk:
