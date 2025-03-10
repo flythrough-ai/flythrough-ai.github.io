@@ -1,6 +1,13 @@
 from app import app, init_db
 import os
+import sqlite3
 from update_db import check_db_schema
+
+# Ensure the required directories exist
+uploads_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+thumbs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'thumbs')
+os.makedirs(uploads_dir, exist_ok=True)
+os.makedirs(thumbs_dir, exist_ok=True)
 
 # Check database schema and update if needed
 try:

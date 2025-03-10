@@ -27,9 +27,15 @@ app = Flask(__name__, static_url_path='', static_folder='.')
 CORS(app)  # Enable CORS for all routes
 
 # Configuration
-UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
-THUMBNAIL_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'thumbs')
-DATABASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'database.db')
+# Check if we're on Render to use the persistent disk location
+if os.environ.get('RENDER'):
+    UPLOAD_FOLDER = '/opt/render/project/data/uploads'
+    THUMBNAIL_FOLDER = '/opt/render/project/data/thumbs'
+    DATABASE_PATH = '/opt/render/project/data/database.db'
+else:
+    UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+    THUMBNAIL_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'thumbs')
+    DATABASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'database.db')
 ALLOWED_EXTENSIONS = {'mp4', 'avi', 'mov', 'jpg', 'jpeg', 'png'}
 MAX_CONTENT_LENGTH = 1024 * 1024 * 1024  # 1GB max upload size
 SESSION_TIMEOUT = 3600  # Session timeout in seconds (1 hour)

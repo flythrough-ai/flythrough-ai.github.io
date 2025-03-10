@@ -3,10 +3,9 @@ services:
   - type: web
     name: flythrough-ai
     runtime: python
-    buildCommand: ./build.sh
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt && python update_db.py
     startCommand: gunicorn wsgi:app
-    # If your web app needs a database, uncomment the following lines to create one
-    # env: python
+    env: python
     envVars:
       - key: PYTHONUNBUFFERED
         value: "true"
