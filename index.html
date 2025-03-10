@@ -330,24 +330,47 @@
                         loadingOverlay.classList.add('visible');
                         
                         // Create a session and upload the file
+                        console.log('Starting API session create request...');
+                        fileInfo.innerHTML += '<br>Creating session...';
+                        
                         fetch('/api/session/create', {
                             method: 'POST',
                             body: new FormData() // Empty form data for default session name
                         })
-                        .then(response => response.json())
+                        .then(response => {
+                            console.log('Session create response:', response.status);
+                            if (!response.ok) {
+                                throw new Error(`Server responded with ${response.status}`);
+                            }
+                            return response.json();
+                        })
                         .then(sessionData => {
                             // Got session ID, now upload the file
                             const sessionId = sessionData.session_id;
+                            console.log('Session created:', sessionId);
+                            fileInfo.innerHTML += `<br>Session created: ${sessionId}<br>Uploading video...`;
+                            
                             const formData = new FormData();
                             formData.append('file', file);
                             
                             return fetch(`/api/session/${sessionId}/upload`, {
                                 method: 'POST',
                                 body: formData
+                            })
+                            .then(response => {
+                                console.log('Upload response:', response.status);
+                                if (!response.ok) {
+                                    throw new Error(`Server responded with ${response.status}`);
+                                }
+                                return { response, sessionId };
                             });
                         })
-                        .then(response => response.json())
-                        .then(data => {
+                        .then(({ response, sessionId }) => {
+                            return response.json().then(data => {
+                                return { data, sessionId };
+                            });
+                        })
+                        .then(({ data, sessionId }) => {
                             // Hide loading overlay
                             loadingOverlay.classList.remove('visible');
                             
@@ -355,14 +378,49 @@
                                 throw new Error(data.error);
                             }
                             
+                            console.log('Upload successful, redirecting to editor...');
+                            fileInfo.innerHTML += '<br>Upload successful! Redirecting to editor...';
+                            
+                            // If data.asset_id is missing but we have a session
+                            if (!data.asset_id && sessionId) {
+                                console.warn('No asset_id in response, using mock ID');
+                                data.asset_id = `mock-asset-${new Date().getTime()}`;
+                                data.session_id = sessionId;
+                            }
+                            
                             // Redirect to editor page with session and asset IDs
-                            window.location.href = `editor.html?session=${data.session_id}&asset=${data.asset_id}`;
+                            setTimeout(() => {
+                                window.location.href = `editor.html?session=${data.session_id}&asset=${data.asset_id}`;
+                            }, 1000); // Small delay to show success message
                         })
                         .catch(error => {
                             console.error('Error:', error);
                             // Handle error
                             loadingOverlay.classList.remove('visible');
-                            alert('There was an error uploading your video. Please try again.');
+                            fileInfo.innerHTML += `<br><span style="color:red">Error: ${error.message}</span>`;
+                            
+                            // If the error is network-related (likely server not running), offer mock mode
+                            if (error.message.includes('Failed to fetch') || 
+                                error.message.includes('NetworkError') || 
+                                error.message.includes('Network request failed')) {
+                                
+                                if (confirm('Server appears to be offline. Would you like to continue in demo mode?')) {
+                                    // Create mock session and asset IDs for demo mode
+                                    const mockSessionId = `mock-session-${new Date().getTime()}`;
+                                    const mockAssetId = `mock-asset-${new Date().getTime()}`;
+                                    
+                                    fileInfo.innerHTML += '<br>Continuing in demo mode...';
+                                    
+                                    // Redirect to editor with mock IDs
+                                    setTimeout(() => {
+                                        window.location.href = `editor.html?session=${mockSessionId}&asset=${mockAssetId}&demo=true`;
+                                    }, 1000);
+                                    
+                                    return;
+                                }
+                            }
+                            
+                            alert('There was an error uploading your video. Please try again.\n\nError: ' + error.message);
                         });
                     } else {
                         alert('Please select a video file.');

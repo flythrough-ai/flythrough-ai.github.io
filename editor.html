@@ -320,18 +320,38 @@
         const frameContainer = document.getElementById('frame-container');
         
         // Backend API configuration
-        const API_BASE_URL = 'http://localhost:5000'; // Base URL without the /api suffix
+        const API_BASE_URL = ''; // Empty string for same-origin requests
         const API_PREFIX = '/api'; // API route prefix
         let currentSessionId = null;
         let loadedFrames = [];
         
+        // Debug function to log API calls
+        function logApiCall(method, url, response) {
+            console.log(`API ${method} ${url}: Status ${response?.status || 'N/A'}`);
+            
+            // Update status display for better visibility
+            const statusEl = document.getElementById('status');
+            if (statusEl) {
+                statusEl.textContent = `${method} ${url}: ${response?.status || 'Failed'}`;
+                if (!response || !response.ok) {
+                    statusEl.style.color = 'red';
+                }
+            }
+        }
+        
         // Create a new session when the page loads
         async function createSession() {
             try {
-                const response = await fetch(`${API_BASE_URL}${API_PREFIX}/session/create`, {
+                const url = `${API_BASE_URL}${API_PREFIX}/session/create`;
+                console.log(`Attempting to create session: ${url}`);
+                document.getElementById('status').textContent = 'Creating new session...';
+                
+                const response = await fetch(url, {
                     method: 'POST',
                     body: new FormData() // Empty form data for default session name
                 });
+                
+                logApiCall('POST', url, response);
                 
                 if (!response.ok) {
                     throw new Error(`Server responded with ${response.status}`);
@@ -340,10 +360,12 @@
                 const data = await response.json();
                 currentSessionId = data.session_id;
                 console.log(`Created new session: ${currentSessionId}`);
+                document.getElementById('status').textContent = `Created new session: ${currentSessionId}`;
                 return currentSessionId;
             } catch (error) {
                 console.error('Error creating session:', error);
                 document.getElementById('status').textContent = `Error: ${error.message}`;
+                document.getElementById('status').style.color = 'red';
                 return null;
             }
         }
@@ -361,12 +383,15 @@
                 
                 document.getElementById('status').textContent = 'Uploading file to server...';
                 
-                console.log(`Uploading to ${API_BASE_URL}${API_PREFIX}/session/${currentSessionId}/upload`);
+                const url = `${API_BASE_URL}${API_PREFIX}/session/${currentSessionId}/upload`;
+                console.log(`Uploading to ${url}`);
                 
-                const response = await fetch(`${API_BASE_URL}${API_PREFIX}/session/${currentSessionId}/upload`, {
+                const response = await fetch(url, {
                     method: 'POST',
                     body: formData
                 });
+                
+                logApiCall('POST', url, response);
                 
                 if (!response.ok) {
                     throw new Error(`Server responded with ${response.status}`);
@@ -410,11 +435,13 @@
                 
                 document.getElementById('status').textContent = 
                     `Processed ${data.frames_count || 'unknown number of'} frames from ${data.filename || file.name}`;
+                document.getElementById('status').style.color = ''; // Reset color
                 
                 return data;
             } catch (error) {
                 console.error('Error uploading file:', error);
                 document.getElementById('status').textContent = `Error: ${error.message}`;
+                document.getElementById('status').style.color = 'red';
                 return null;
             }
         }
@@ -429,9 +456,12 @@
                     return [];
                 }
                 
-                console.log(`Fetching frames from ${API_BASE_URL}${API_PREFIX}/asset/${assetId}/frames`);
+                const url = `${API_BASE_URL}${API_PREFIX}/asset/${assetId}/frames`;
+                console.log(`Fetching frames from ${url}`);
+                document.getElementById('status').textContent = `Fetching frames for asset: ${assetId}`;
                 
-                const response = await fetch(`${API_BASE_URL}${API_PREFIX}/asset/${assetId}/frames`);
+                const response = await fetch(url);
+                logApiCall('GET', url, response);
                 
                 if (!response.ok) {
                     throw new Error(`Server responded with ${response.status} (${response.statusText})`);
@@ -443,6 +473,7 @@
                 // Handle different response formats
                 if (data && Array.isArray(data.frames)) {
                     console.log(`Found ${data.frames.length} frames in response`);
+                    document.getElementById('status').textContent = `Loaded ${data.frames.length} frames`;
                     return data.frames.map(frame => {
                         // Clean and validate each frame object
                         return {
@@ -458,6 +489,7 @@
                 } else if (data && Array.isArray(data)) {
                     // Handle case where response is a direct array instead of {frames: [...]}
                     console.log(`Found ${data.length} frames in direct array response`);
+                    document.getElementById('status').textContent = `Loaded ${data.length} frames`;
                     return data.map(frame => {
                         return {
                             id: frame.id || `frame-${Math.random().toString(36).substr(2, 9)}`,
@@ -478,6 +510,7 @@
             } catch (error) {
                 console.error('Error getting frames:', error);
                 document.getElementById('status').textContent = `Error: ${error.message}`;
+                document.getElementById('status').style.color = 'red';
                 return [];
             }
         }
@@ -636,6 +669,7 @@
             const urlParams = new URLSearchParams(window.location.search);
             const sessionId = urlParams.get('session');
             const assetId = urlParams.get('asset');
+            const demoMode = urlParams.get('demo') === 'true';
             
             if (sessionId && assetId) {
                 // We have session and asset IDs, use them
@@ -646,15 +680,26 @@
                 document.getElementById('loading-overlay').style.display = 'flex';
                 
                 try {
-                    // Get the frames for the asset
-                    const frames = await getAssetFrames(assetId);
-                    
-                    if (frames.length > 0) {
-                        // Load frames into the timeline
-                        loadFramesIntoTimeline(frames);
+                    // Check if we're in demo mode
+                    if (demoMode || sessionId.startsWith('mock-session')) {
+                        console.log('Running in demo/mock mode');
+                        document.getElementById('status').textContent = 'Running in demo mode...';
                         
-                        // Generate 3D visualization from the loaded frames
-                        generatePointGroups(frames);
+                        // Create mock file object for demo
+                        const mockFile = new File(
+                            [new ArrayBuffer(1024)], // dummy content
+                            "demo_video.mp4",
+                            { type: "video/mp4" }
+                        );
+                        
+                        // Generate mock frames
+                        const mockFrames = generateMockFrames(mockFile, 10);
+                        
+                        // Load frames into the timeline
+                        loadFramesIntoTimeline(mockFrames);
+                        
+                        // Generate 3D visualization
+                        generatePointGroups(mockFrames);
                         
                         // Show all point groups
                         showAllPointGroups();
@@ -663,15 +708,36 @@
                         togglePointGroup(1);
                         
                         document.getElementById('status').textContent = 
-                            `Loaded ${frames.length} frames from existing session`;
+                            `Demo mode: Generated ${mockFrames.length} mock frames`;
                     } else {
-                        throw new Error('No frames found for this asset');
+                        // Get the frames for the asset from the server
+                        const frames = await getAssetFrames(assetId);
+                        
+                        if (frames.length > 0) {
+                            // Load frames into the timeline
+                            loadFramesIntoTimeline(frames);
+                            
+                            // Generate 3D visualization from the loaded frames
+                            generatePointGroups(frames);
+                            
+                            // Show all point groups
+                            showAllPointGroups();
+                            
+                            // Highlight first frame's points
+                            togglePointGroup(1);
+                            
+                            document.getElementById('status').textContent = 
+                                `Loaded ${frames.length} frames from existing session`;
+                        } else {
+                            throw new Error('No frames found for this asset');
+                        }
                     }
                 } catch (error) {
                     console.error('Error loading asset:', error);
                     document.getElementById('status').textContent = 
                         `Error loading asset: ${error.message}`;
-                        
+                    document.getElementById('status').style.color = 'red';
+                    
                     // If there was an error, create a new session as fallback
                     await createSession();
                 } finally {
