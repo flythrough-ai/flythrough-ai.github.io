@@ -1,7 +1,18 @@
 from app import app, init_db
+import os
+from update_db import check_db_schema
+
+# Check database schema and update if needed
+try:
+    check_db_schema()
+except Exception as e:
+    print(f"Error checking database schema: {e}")
 
 # Initialize the database
-init_db()
+try:
+    init_db()
+except Exception as e:
+    print(f"Error initializing database: {e}")
 
 # Print routes for debugging
 if __name__ == "__main__":

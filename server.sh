@@ -52,6 +52,9 @@ case "$1" in
       export FLASK_DEBUG=1
       python3 app.py
     else
+      echo "Updating database schema..."
+      python update_db.py
+      
       echo "Starting production server on port $PORT..."
       # Increase Gunicorn verbosity for debugging
       gunicorn --bind 0.0.0.0:"$PORT" wsgi:app --log-level debug
@@ -66,10 +69,15 @@ case "$1" in
     kill_port && sleep 1
     if [ "$2" = "dev" ]; then
       echo "Restarting development server on port $PORT..."
-      python app.py
+      export FLASK_ENV=development
+      export FLASK_DEBUG=1
+      python3 app.py
     else
+      echo "Updating database schema..."
+      python update_db.py
+      
       echo "Restarting production server on port $PORT..."
-      gunicorn --bind 0.0.0.0:"$PORT" wsgi:app
+      gunicorn --bind 0.0.0.0:"$PORT" wsgi:app --log-level debug
     fi
     ;;
     
