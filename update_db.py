@@ -2,7 +2,12 @@ import sqlite3
 import os
 
 # Path to the database
-DATABASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'database.db')
+if os.environ.get('RENDER'):
+    DATABASE_PATH = '/opt/render/project/data/database.db'
+    # Make sure the parent directory exists
+    os.makedirs('/opt/render/project/data', exist_ok=True)
+else:
+    DATABASE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'database.db')
 
 def check_db_schema():
     """Check the database schema and update it if needed."""

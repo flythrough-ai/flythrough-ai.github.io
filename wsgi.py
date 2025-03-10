@@ -4,8 +4,14 @@ import sqlite3
 from update_db import check_db_schema
 
 # Ensure the required directories exist
-uploads_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
-thumbs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'thumbs')
+if os.environ.get('RENDER'):
+    uploads_dir = '/opt/render/project/data/uploads'
+    thumbs_dir = '/opt/render/project/data/thumbs'
+    os.makedirs('/opt/render/project/data', exist_ok=True)
+else:
+    uploads_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+    thumbs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'thumbs')
+
 os.makedirs(uploads_dir, exist_ok=True)
 os.makedirs(thumbs_dir, exist_ok=True)
 
