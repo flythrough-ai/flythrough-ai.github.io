@@ -704,14 +704,30 @@
                         // Load frames into the timeline
                         loadFramesIntoTimeline(frames);
                         
-                        // Generate 3D visualization from the loaded frames
-                        generatePointGroups(frames);
+                        // Store frames for later processing after Three.js is initialized
+                        loadedFrames = frames;
                         
-                        // Show all point groups
-                        showAllPointGroups();
-                        
-                        // Highlight first frame's points
-                        togglePointGroup(1);
+                        // Check if Three.js is already initialized
+                        if (threeJSInitialized && typeof scene !== 'undefined') {
+                            // Generate 3D visualization from the loaded frames
+                            generatePointGroups(frames);
+                            
+                            // Show all point groups
+                            showAllPointGroups();
+                            
+                            // Highlight first frame's points
+                            togglePointGroup(1);
+                        } else {
+                            // Set up a listener to process frames when Three.js is ready
+                            console.log('Three.js not initialized yet, setting up listener');
+                            document.addEventListener('threeJSReady', function onThreeJSReady() {
+                                console.log('Three.js initialized, processing frames');
+                                generatePointGroups(loadedFrames);
+                                showAllPointGroups();
+                                togglePointGroup(1);
+                                document.removeEventListener('threeJSReady', onThreeJSReady);
+                            });
+                        }
                         
                         document.getElementById('status').textContent = 
                             `Loaded ${frames.length} frames from existing session`;
@@ -824,15 +840,33 @@
                                 // Load frames into the timeline
                                 loadFramesIntoTimeline(frames);
                                 
-                                // Generate 3D visualization from the loaded frames
-                                generatePointGroups(frames);
+                                // Store frames for later processing
+                                loadedFrames = frames;
                                 
-                                // Show all point groups
-                                showAllPointGroups();
-                                
-                                // Highlight first frame's points
-                                if (frames.length > 0) {
-                                    togglePointGroup(1);
+                                // Check if Three.js is already initialized
+                                if (threeJSInitialized && typeof scene !== 'undefined') {
+                                    // Generate 3D visualization from the loaded frames
+                                    generatePointGroups(frames);
+                                    
+                                    // Show all point groups
+                                    showAllPointGroups();
+                                    
+                                    // Highlight first frame's points
+                                    if (frames.length > 0) {
+                                        togglePointGroup(1);
+                                    }
+                                } else {
+                                    // Set up a listener to process frames when Three.js is ready
+                                    console.log('Three.js not initialized yet, setting up listener');
+                                    document.addEventListener('threeJSReady', function onThreeJSReady() {
+                                        console.log('Three.js initialized, processing frames');
+                                        generatePointGroups(loadedFrames);
+                                        showAllPointGroups();
+                                        if (loadedFrames.length > 0) {
+                                            togglePointGroup(1);
+                                        }
+                                        document.removeEventListener('threeJSReady', onThreeJSReady);
+                                    });
                                 }
                                 
                                 const statusText = usingMockData ? 
@@ -1678,6 +1712,9 @@
                 
                 // Mark as initialized and set up the visualization
                 threeJSInitialized = true;
+                
+                // Dispatch an event to signal that Three.js is ready
+                document.dispatchEvent(new Event('threeJSReady'));
                 
                 // Set a short timeout to ensure everything is properly loaded
                 setTimeout(initializeVisualization, 100);

@@ -50,7 +50,7 @@ case "$1" in
       # Set Flask to debug mode for better error messages
       export FLASK_ENV=development
       export FLASK_DEBUG=1
-      python app.py
+      python3 app.py
     else
       echo "Starting production server on port $PORT..."
       # Increase Gunicorn verbosity for debugging
