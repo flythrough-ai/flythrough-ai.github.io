@@ -342,6 +342,24 @@
         // Create a new session when the page loads
         async function createSession() {
             try {
+                // Check if we're on GitHub Pages (static mode)
+                const isGitHubPages = window.location.hostname.includes('github.io');
+                
+                if (isGitHubPages) {
+                    // In static mode, create a mock session
+                    console.log('Running on GitHub Pages - using mock session');
+                    document.getElementById('status').textContent = 'Static mode: Creating mock session';
+                    
+                    // Create a mock session ID
+                    const mockSessionId = `mock-session-${new Date().getTime()}`;
+                    currentSessionId = mockSessionId;
+                    
+                    console.log(`Created mock session: ${currentSessionId}`);
+                    document.getElementById('status').textContent = `Mock session: ${currentSessionId}`;
+                    return currentSessionId;
+                }
+                
+                // If not GitHub Pages, try real API calls
                 // Try GET request first - the server might be expecting GET instead of POST
                 const url = `${API_BASE_URL}${API_PREFIX}/session/create`;
                 console.log(`Attempting to create session: ${url}`);
@@ -381,9 +399,13 @@
                 return currentSessionId;
             } catch (error) {
                 console.error('Error creating session:', error);
-                document.getElementById('status').textContent = `Error: ${error.message}`;
-                document.getElementById('status').style.color = 'red';
-                return null;
+                
+                // Fall back to mock session on error
+                console.log('Error occurred, falling back to mock session');
+                const mockSessionId = `mock-session-${new Date().getTime()}`;
+                currentSessionId = mockSessionId;
+                document.getElementById('status').textContent = `Mock session (error fallback): ${currentSessionId}`;
+                return currentSessionId;
             }
         }
         
@@ -392,6 +414,31 @@
             if (!currentSessionId) {
                 currentSessionId = await createSession();
                 if (!currentSessionId) return null;
+            }
+            
+            // Check if we're on GitHub Pages (static mode)
+            const isGitHubPages = window.location.hostname.includes('github.io');
+            
+            if (isGitHubPages || currentSessionId.startsWith('mock-session')) {
+                console.log('Static mode: Using mock upload');
+                document.getElementById('status').textContent = 'Processing file in static mode...';
+                
+                // Create mock data for the result
+                const mockAssetId = `mock-asset-${new Date().getTime()}`;
+                const mockData = {
+                    asset_id: mockAssetId,
+                    session_id: currentSessionId,
+                    filename: file.name,
+                    frames_count: 10
+                };
+                
+                // Simulate network delay
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                document.getElementById('status').textContent = 
+                    `Static mode: Processed ${mockData.frames_count} frames from ${file.name}`;
+                
+                return mockData;
             }
             
             try {
@@ -465,6 +512,30 @@
         
         // Get frames for an asset
         async function getAssetFrames(assetId) {
+            // Check if we're on GitHub Pages (static mode)
+            const isGitHubPages = window.location.hostname.includes('github.io');
+            
+            if (isGitHubPages || assetId.startsWith('mock-asset')) {
+                console.log('Static mode: Using mock frames for asset:', assetId);
+                document.getElementById('status').textContent = 'Generating mock frames...';
+                
+                // Create a mock file object for demo
+                const mockFile = new File(
+                    [new ArrayBuffer(1024)], // dummy content
+                    "demo_video.mp4",
+                    { type: "video/mp4" }
+                );
+                
+                // Generate mock frames
+                const mockFrames = generateMockFrames(mockFile, 10);
+                console.log(`Generated ${mockFrames.length} mock frames`);
+                
+                // Simulate network delay
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                return mockFrames;
+            }
+            
             try {
                 // Validate asset ID before making request
                 if (!assetId) {
@@ -697,8 +768,30 @@
                 document.getElementById('loading-overlay').style.display = 'flex';
                 
                 try {
-                    // Get the frames for the asset from the server
-                    const frames = await getAssetFrames(assetId);
+                    // Check if we're on GitHub Pages (static mode)
+                    const isGitHubPages = window.location.hostname.includes('github.io');
+                    const isDemo = sessionId.startsWith('mock-session') || assetId.startsWith('mock-asset');
+                    
+                    let frames = [];
+                    
+                    if (isGitHubPages || isDemo) {
+                        // In static mode, generate mock frames instead of trying to load from server
+                        console.log('Using mock frames for static mode or demo');
+                        document.getElementById('status').textContent = 'Generating mock frames...';
+                        
+                        // Create a mock file object for demo
+                        const mockFile = new File(
+                            [new ArrayBuffer(1024)], // dummy content
+                            "demo_video.mp4",
+                            { type: "video/mp4" }
+                        );
+                        
+                        // Generate mock frames
+                        frames = generateMockFrames(mockFile, 10);
+                    } else {
+                        // Get the frames for the asset from the server
+                        frames = await getAssetFrames(assetId);
+                    }
                     
                     if (frames.length > 0) {
                         // Load frames into the timeline

@@ -1,0 +1,15 @@
+services:
+  # A Flask web service
+  - type: web
+    name: flythrough-ai
+    runtime: python
+    buildCommand: ./build.sh
+    startCommand: gunicorn wsgi:app
+    # If your web app needs a database, uncomment the following lines to create one
+    # env: python
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "true"
+      - key: FLASK_ENV
+        value: "production"
+    autoDeploy: true
